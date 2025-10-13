@@ -10,6 +10,8 @@ import Widget from './components/dashboard/widget';
 import Notifications from './components/dashboard/notifications';
 import { MobileChat } from './components/chat/mobile-chat';
 import { MobileHeader } from './components/dashboard/mobile-header';
+import { MessageSquare } from 'lucide-react';
+import { Bullet } from './components/ui/bullet';
 import mockDataJson from './mock.json';
 import type { MockData } from './types/dashboard';
 
@@ -328,24 +330,40 @@ function App() {
 
         {/* Center - Chat Interface */}
         <div className="col-span-1 lg:col-span-7">
-          <div className="py-sides">
-            {isLoadingChannels || !activeChannelId ? (
-              <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                  <p className="mt-4 text-muted-foreground uppercase tracking-wider text-sm font-mono">
-                    {isLoadingChannels ? 'Loading channels...' : 'Select a chat'}
-                  </p>
-                </div>
+          <div className="flex flex-col relative w-full gap-1 min-h-full">
+            {/* Header */}
+            <div className="flex items-center lg:items-baseline gap-2.5 md:gap-4 px-4 md:px-6 py-3 md:pb-4 lg:pt-7 ring-2 ring-pop sticky top-header-mobile lg:top-0 bg-background z-10">
+              <div className="max-lg:contents rounded bg-primary size-7 md:size-9 flex items-center justify-center my-auto">
+                <MessageSquare className="ml-1 lg:ml-0 opacity-50 md:opacity-100 size-5" />
               </div>
-            ) : (
-              <ChatInterface
-                agent={agent}
-                userId={USER_ID}
-                serverId={DEFAULT_SERVER_ID}
-                channelId={activeChannelId}
-              />
-            )}
+              <h1 className="text-xl lg:text-4xl font-display leading-[1] mb-1">
+                AI Chat
+              </h1>
+              <span className="ml-auto text-xs md:text-sm text-muted-foreground block">
+                Communicate with advanced language models
+              </span>
+            </div>
+            
+            {/* Content Area */}
+            <div className="min-h-full flex-1 flex flex-col gap-8 md:gap-14 px-3 lg:px-6 py-6 md:py-10 ring-2 ring-pop bg-background">
+              {isLoadingChannels || !activeChannelId ? (
+                <div className="flex items-center justify-center h-[calc(100vh-12rem)]">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-4 text-muted-foreground uppercase tracking-wider text-sm font-mono">
+                      {isLoadingChannels ? 'Loading channels...' : 'Select a chat'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ChatInterface
+                  agent={agent}
+                  userId={USER_ID}
+                  serverId={DEFAULT_SERVER_ID}
+                  channelId={activeChannelId}
+                />
+              )}
+            </div>
           </div>
         </div>
 
