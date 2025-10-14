@@ -11,6 +11,26 @@ import { Bullet } from "@/components/ui/bullet"
 import { cn } from "@/lib/utils"
 import ArrowRightIcon from "@/components/icons/arrow-right"
 
+// Quick start prompts for new conversations
+const QUICK_PROMPTS = [
+  {
+    label: "Market Analysis",
+    message: "What's the current DeFi market situation?"
+  },
+  {
+    label: "Portfolio Review",
+    message: "Analyze my portfolio and suggest optimizations"
+  },
+  {
+    label: "Risk Assessment",
+    message: "Should I invest in this new DeFi protocol? It's promising 300% APY."
+  },
+  {
+    label: "Stablecoins",
+    message: "Explain stablecoin peg dynamics"
+  }
+]
+
 interface Message {
   id: string
   content: string
@@ -152,43 +172,35 @@ export function ChatInterface({ agent, userId, serverId, channelId }: ChatInterf
     setIsTyping(true)
   }
 
+  // Handle quick prompt click - auto send message
+  const handleQuickPrompt = (message: string) => {
+    if (isTyping || !message.trim()) return
+    
+    console.log('🚀 [ChatInterface] Sending quick prompt:', {
+      channelId,
+      text: message,
+      serverId,
+      userId,
+      agentId: agent.id,
+    })
+    
+    // Send via socket directly
+    socketManager.sendMessage(channelId, message, serverId, {
+      userId,
+      isDm: true,
+      targetUserId: agent.id,
+    })
+    
+    setIsTyping(true)
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] gap-6">
-      <Card>
-        <CardHeader className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2.5">
-            <Bullet />
-            Chat with {agent.name}
-          </CardTitle>
-          <span className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
-            {messages.length} Messages
-          </span>
-        </CardHeader>
-        <CardContent className="flex-1 relative">
-          <div className="flex items-center gap-4">
-            <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Agent</label>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <span className="text-sm font-bold text-primary">{agent.name?.charAt(0).toUpperCase()}</span>
-              </div>
-              <span className="font-mono text-sm">{agent.name}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card className="flex-1 overflow-hidden">
         <CardContent className="h-full overflow-y-auto p-6">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <Bot className="size-16 text-muted-foreground/20 mb-4" />
-              <h3 className="text-xl font-mono text-foreground/80 mb-2 uppercase tracking-wider">Start Conversation</h3>
-              <p className="text-xs md:text-sm text-muted-foreground max-w-md leading-relaxed font-mono">
-                Send a message to begin chatting with {agent.name}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
+          <div className="space-y-4 h-full flex flex-col">
+            {/* Messages */}
+            <div className="flex-1 space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -218,7 +230,26 @@ export function ChatInterface({ agent, userId, serverId, channelId }: ChatInterf
               )}
               <div ref={messagesEndRef} />
             </div>
-          )}
+
+            {/* Quick Prompts - Only show when no messages */}
+            {messages.length === 0 && (
+              <div className="pt-4 border-t border-border">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-mono">Quick Start</p>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt.label}
+                      onClick={() => handleQuickPrompt(prompt.message)}
+                      disabled={isTyping}
+                      className="px-3 py-2 text-xs sm:text-sm bg-accent hover:bg-accent/80 text-foreground rounded border border-border transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {prompt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -44,8 +44,6 @@ interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onChannelSelect?: (channelId: string) => void
   onNewChat?: () => void
   isCreatingChannel?: boolean
-  agentName?: string
-  agentAvatar?: string
   userEmail?: string
   onSignOut?: () => void
 }
@@ -57,11 +55,9 @@ export function DashboardSidebar({
   onChannelSelect = () => {},
   onNewChat = () => {},
   isCreatingChannel = false,
-  agentName = "Loading...",
-  agentAvatar,
   userEmail,
   onSignOut,
-  ...props 
+  ...props
 }: DashboardSidebarProps) {
   return (
     <Sidebar {...props} className={cn("py-sides", className)}>
@@ -71,8 +67,8 @@ export function DashboardSidebar({
             <MonkeyIcon className="size-10 group-hover:scale-[1.7] origin-top-left transition-transform" />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="text-2xl font-display">M.O.N.K.Y.</span>
-            <span className="text-xs uppercase">The OS for Rebels</span>
+            <span className="text-2xl font-display">O.T.A.K.U.</span>
+            <span className="text-xs uppercase">DeFi Analyst Agent</span>
           </div>
         </div>
       </SidebarHeader>
@@ -103,32 +99,7 @@ export function DashboardSidebar({
           </SidebarGroupLabel>
           
           <SidebarGroupContent>
-            {/* Agent Info */}
-            <div className="px-2 py-3 mb-2 border-b border-sidebar-border">
-              <div className="flex items-center gap-2">
-                {agentAvatar ? (
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-sidebar-primary-foreground/10">
-                    <img 
-                      src={agentAvatar} 
-                      alt={agentName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-sidebar-primary-foreground/10 flex-shrink-0">
-                    <span className="text-xs font-bold text-sidebar-primary-foreground">
-                      {agentName.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{agentName}</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">AI Agent</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="max-h-[calc(100vh-28rem)] overflow-y-auto">
+            <div className="max-h-[calc(100vh-24rem)] overflow-y-auto">
               <SidebarMenu>
                 {channels.length === 0 ? (
                   <div className="px-2 py-8 text-center">

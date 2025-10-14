@@ -491,8 +491,6 @@ function App() {
             onChannelSelect={handleChannelSelect}
             onNewChat={handleNewChat}
             isCreatingChannel={isCreatingChannel}
-            agentName={agent.name}
-            agentAvatar={agent.settings?.avatar as string | undefined}
             userEmail={userEmail}
             onSignOut={signOut}
           />
@@ -501,16 +499,26 @@ function App() {
         {/* Center - Chat Interface */}
         <div className="col-span-1 lg:col-span-7">
           <div className="flex flex-col relative w-full gap-1 min-h-full">
-            {/* Header */}
+      {/* Header */}
             <div className="flex items-center lg:items-baseline gap-2.5 md:gap-4 px-4 md:px-6 py-3 md:pb-4 lg:pt-7 ring-2 ring-pop sticky top-header-mobile lg:top-0 bg-background z-10">
-              <div className="max-lg:contents rounded bg-primary size-7 md:size-9 flex items-center justify-center my-auto">
-                <MessageSquare className="ml-1 lg:ml-0 opacity-50 md:opacity-100 size-5" />
-              </div>
+              {(agent as any)?.settings?.avatar ? (
+                <div className="rounded size-7 md:size-9 overflow-hidden flex-shrink-0 my-auto">
+                  <img 
+                    src={(agent as any).settings.avatar as string} 
+                    alt={agent?.name || 'Agent'}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="rounded bg-primary size-7 md:size-9 flex items-center justify-center my-auto flex-shrink-0">
+                  <MessageSquare className="opacity-50 md:opacity-100 size-4 md:size-5" />
+                </div>
+              )}
               <h1 className="text-xl lg:text-4xl font-display leading-[1] mb-1">
-                AI Chat
+                Agent
               </h1>
-              <span className="ml-auto text-xs md:text-sm text-muted-foreground block">
-                Communicate with advanced language models
+              <span className="ml-auto text-xs md:text-sm text-muted-foreground block uppercase">
+                Powered by ElizaOS
               </span>
             </div>
             
