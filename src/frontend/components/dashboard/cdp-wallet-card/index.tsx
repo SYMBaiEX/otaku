@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCDPWallet } from '@/hooks/useCDPWallet';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Bullet } from '@/components/ui/bullet';
 import { Copy, Check, TrendingUp, RefreshCw, Send } from 'lucide-react';
 import { formatUnits, createPublicClient, http } from 'viem';
 import { base, mainnet, polygon } from 'viem/chains';
+import { SendModal } from './SendModal';
 
 // Supported chains
 type ChainNetwork = 'base' | 'ethereum' | 'polygon';
@@ -83,6 +85,7 @@ interface TokenBalance {
   icon: string;
   contractAddress?: string;
   chain: ChainNetwork;
+  decimals?: number;
 }
 
 // Token info from CoinGecko
@@ -115,6 +118,7 @@ export function CDPWalletCard() {
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showFundModal, setShowFundModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'tokens' | 'collections' | 'history'>('tokens');
   const [loadedChains, setLoadedChains] = useState<ChainNetwork[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -125,13 +129,11 @@ export function CDPWalletCard() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Helper function to get token icon based on symbol
-  const getTokenIcon = (symbol: string): string => {
-    if (symbol === 'ETH' || symbol === 'WETH') return '⟠';
-    if (symbol === 'MATIC') return '🟣';
-    if (symbol === 'USDC' || symbol === 'USDbC' || symbol === 'USDT') return '💵';
-    if (symbol === 'DAI') return '💰';
-    if (symbol === 'WBTC' || symbol === 'BTC') return '₿';
-    return '🪙';
+    // Get token icon - returns SVG path for native tokens, null for others (will use circle fallback)
+  const getTokenIconPath = (symbol: string): string | null => {
+    if (symbol === 'ETH' || symbol === 'WETH') return '/assets/eth.svg';
+    if (symbol === 'MATIC' || symbol === 'POL') return '/assets/polygon.svg';
+    return null; // Use circle with first letter fallback
   };
 
   // Fetch token data from DexScreener (fallback for tokens not on CoinGecko)
@@ -339,11 +341,17 @@ export function CDPWalletCard() {
       if (nativeBalance > 0n) {
         const amount = Number(formatUnits(nativeBalance, 18));
         
-        // Get native token price from CoinGecko
+        // Get native token price from CoinGecko Pro API
         let price = 0;
         try {
+          const apiKey = import.meta.env.COINGECKO_API_KEY;
           const priceResponse = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${chainConfig.nativeToken.coingeckoId}&vs_currencies=usd`
+            `https://pro-api.coingecko.com/api/v3/simple/price?ids=${chainConfig.nativeToken.coingeckoId}&vs_currencies=usd`,
+            {
+              headers: apiKey ? {
+                'x-cg-pro-api-key': apiKey,
+              } : {},
+            }
           );
           const priceData = await priceResponse.json();
           price = priceData[chainConfig.nativeToken.coingeckoId]?.usd || 0;
@@ -357,8 +365,9 @@ export function CDPWalletCard() {
           balance: amount.toString(),
           balanceFormatted: amount.toFixed(6),
           usdValue: amount * price,
-          icon: getTokenIcon(chainConfig.nativeToken.symbol),
+          icon: getTokenIconPath(chainConfig.nativeToken.symbol) || chainConfig.nativeToken.symbol,
           chain,
+          decimals: 18, // Native tokens are always 18 decimals
         });
       }
 
@@ -379,9 +388,10 @@ export function CDPWalletCard() {
               balance: amount.toString(),
               balanceFormatted: amount.toFixed(6),
               usdValue,
-              icon: info.icon || getTokenIcon(info.symbol),
+              icon: info.icon || getTokenIconPath(info.symbol) || info.symbol,
               contractAddress,
               chain,
+              decimals: info.decimals,
             });
           }
         } catch (err) {
@@ -652,19 +662,22 @@ export function CDPWalletCard() {
   if (isSignedIn && evmAddress) {
     return (
       <Card className="max-h-[calc(100vh-2rem)] w-full overflow-hidden flex flex-col">
-        <CardContent className="bg-accent p-1.5 flex-1 overflow-auto relative w-full">
-          {/* Refresh button in top right corner of dark background */}
+        <CardHeader className="flex items-center justify-between pl-3 pr-1">
+          <CardTitle className="flex items-center gap-2.5 text-sm font-medium uppercase">
+            <Bullet />
+            Wallet
+          </CardTitle>
           <Button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
             variant="ghost"
             size="sm"
-            className="absolute top-2 right-2 h-8 w-8 p-0 opacity-50 hover:opacity-100 z-10"
-            title="Refresh balances"
+            className="text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
-          
+        </CardHeader>
+        <CardContent className="bg-accent p-1.5 flex-1 overflow-auto relative w-full">
           <div className="space-y-4 bg-background rounded-lg p-3 sm:p-4 border border-border/30 w-full overflow-hidden">
             {/* Error message */}
             {error && (
@@ -704,13 +717,11 @@ export function CDPWalletCard() {
               Fund
             </Button>
             <Button 
-              onClick={() => {
-                // TODO: Implement send functionality
-                console.log('Send button clicked - to be implemented');
-              }}
+              onClick={() => setShowSendModal(true)}
               className="flex-1"
               variant="outline"
               size="sm"
+              disabled={tokens.length === 0 || isLoadingTokens}
             >
               <Send className="w-4 h-4 mr-2" />
               Send
@@ -781,19 +792,21 @@ export function CDPWalletCard() {
                   >
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                       <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {token.icon.startsWith('http') ? (
+                        {token.icon.startsWith('http') || token.icon.startsWith('/assets/') ? (
                           <img 
                             src={token.icon} 
                             alt={token.symbol}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain p-0.5"
                             onError={(e) => {
-                              // Fallback to emoji if image fails to load
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.parentElement!.innerHTML = getTokenIcon(token.symbol);
+                              // Fallback to circle with first letter if SVG/image fails to load
+                              const parent = e.currentTarget.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<span class="text-xs sm:text-sm font-bold text-muted-foreground uppercase">${token.symbol.charAt(0)}</span>`;
+                              }
                             }}
                           />
                         ) : (
-                          <span className="text-base sm:text-lg">{token.icon}</span>
+                          <span className="text-xs sm:text-sm font-bold text-muted-foreground uppercase">{token.icon.charAt(0)}</span>
                         )}
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
@@ -804,7 +817,10 @@ export function CDPWalletCard() {
                           </span>
                         </div>
                         <span className="text-xs text-muted-foreground truncate">
-                          {parseFloat(token.balanceFormatted).toFixed(4)}
+                          {parseFloat(token.balanceFormatted) < 0.0001 
+                            ? parseFloat(token.balanceFormatted).toExponential(2)
+                            : parseFloat(token.balanceFormatted).toFixed(6).replace(/\.?0+$/, '')
+                          }
                         </span>
                       </div>
                     </div>
@@ -943,6 +959,19 @@ export function CDPWalletCard() {
                 </Button>
               </div>
             </div>
+          )}
+
+          {/* Send Modal */}
+          {showSendModal && (
+            <SendModal
+              tokens={tokens}
+              onClose={() => setShowSendModal(false)}
+              onSuccess={() => {
+                setShowSendModal(false);
+                // Refresh balances after successful send
+                fetchTokenBalances(true);
+              }}
+            />
           )}
           </div>
         </CardContent>

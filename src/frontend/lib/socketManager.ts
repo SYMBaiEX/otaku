@@ -61,7 +61,6 @@ class SocketManager {
       },
     });
     
-    console.log(`!!!!!!!!!!!!!!!!!!!!!!!!! Joined channel: ${channelId} with serverId: ${serverId}`);
   }
 
   leaveChannel(channelId: string) {

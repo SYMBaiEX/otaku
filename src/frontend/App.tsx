@@ -576,10 +576,7 @@ export default function AppWithCDP() {
       config={{
         projectId: cdpProjectId,
         ethereum: {
-          createOnLogin: "eoa"
-        },
-        solana: {
-          createOnLogin: true
+          createOnLogin: "smart"
         },
         appName: "Otaku AI Agent"
       }}
