@@ -5,7 +5,12 @@ import type { AgentServer } from '../../index';
 import { sendError, sendSuccess } from '../shared/response-utils';
 import { createWalletClient, http } from 'viem';
 import { toAccount } from 'viem/accounts';
-import { base, mainnet, polygon, baseSepolia, sepolia } from 'viem/chains';
+import {
+  MAINNET_NETWORKS,
+  getChainConfig,
+  getViemChain,
+  getRpcUrl,
+} from '../../constants/chains';
         
 
 // Singleton CDP client instance
@@ -258,33 +263,18 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
         return sendError(res, 503, 'SERVICE_UNAVAILABLE', 'Alchemy API key not configured');
       }
 
-      // Supported networks
-      const networks = ['base', 'ethereum', 'polygon'] as const;
-      const platformMap: Record<string, string> = {
-        base: 'base',
-        ethereum: 'ethereum',
-        polygon: 'polygon-pos',
-      };
-
-      const rpcMap: Record<string, string> = {
-        base: `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-        ethereum: `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-        polygon: `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-      };
-
       const allTokens: any[] = [];
       let totalUsdValue = 0;
 
-      // Native token info mapping
-      const nativeTokenInfo: Record<string, { symbol: string; name: string; coingeckoId: string }> = {
-        base: { symbol: 'ETH', name: 'Ethereum', coingeckoId: 'ethereum' },
-        ethereum: { symbol: 'ETH', name: 'Ethereum', coingeckoId: 'ethereum' },
-        polygon: { symbol: 'MATIC', name: 'Polygon', coingeckoId: 'matic-network' },
-      };
-
-      for (const network of networks) {
+      for (const network of MAINNET_NETWORKS) {
         try {
-          const rpcUrl = rpcMap[network];
+          const chainConfig = getChainConfig(network);
+          if (!chainConfig) {
+            logger.warn(`[CDP API] Unsupported network: ${network}`);
+            continue;
+          }
+
+          const rpcUrl = chainConfig.rpcUrl(alchemyKey);
 
           // Step 1: Fetch native token balance
           const nativeResponse = await fetch(rpcUrl, {
@@ -303,9 +293,8 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
 
           // Add native token if balance > 0
           if (nativeBalance > 0n) {
-            const amountNum = safeBalanceToNumber('0x' + nativeBalance.toString(16), 18);
-            const nativeInfo = nativeTokenInfo[network];
-            const usdPrice = await getNativeTokenPrice(nativeInfo.coingeckoId);
+            const amountNum = safeBalanceToNumber('0x' + nativeBalance.toString(16), chainConfig.nativeToken.decimals);
+            const usdPrice = await getNativeTokenPrice(chainConfig.nativeToken.coingeckoId);
             const usdValue = amountNum * usdPrice;
             
             // Only add to total if it's a valid number
@@ -314,15 +303,15 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
             }
 
             allTokens.push({
-              symbol: nativeInfo.symbol,
-              name: nativeInfo.name,
+              symbol: chainConfig.nativeToken.symbol,
+              name: chainConfig.nativeToken.name,
               balance: isNaN(amountNum) ? '0' : amountNum.toString(),
               balanceFormatted: isNaN(amountNum) ? '0' : amountNum.toFixed(6).replace(/\.?0+$/, ''),
               usdValue: isNaN(usdValue) ? 0 : usdValue,
               usdPrice: isNaN(usdPrice) ? 0 : usdPrice,
               contractAddress: null,
               chain: network,
-              decimals: 18,
+              decimals: chainConfig.nativeToken.decimals,
               icon: undefined,
             });
           }
@@ -362,7 +351,8 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
               if (!tokenBalanceHex || BigInt(tokenBalanceHex) === 0n) continue;
               
               // Get token info from CoinGecko
-              let tokenInfo = await getTokenInfo(contractAddress, platformMap[network]);
+              const platform = chainConfig.coingeckoPlatform;
+              let tokenInfo = await getTokenInfo(contractAddress, platform);
               let usdPrice = 0;
               
               if (!tokenInfo) {
@@ -482,12 +472,15 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
       const account = await client.evm.getOrCreateAccount({ name });
       const address = account.address;
 
-      // Fetch NFTs from Base and Ethereum using Alchemy REST API
-      const networks = [
-        { name: 'base', url: `https://base-mainnet.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=100` },
-        { name: 'ethereum', url: `https://eth-mainnet.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=100` },
-        { name: 'polygon', url: `https://polygon-mainnet.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=100` },
-      ];
+      // Fetch NFTs from all mainnet networks using Alchemy REST API
+      const networks = MAINNET_NETWORKS.map(network => {
+        const config = getChainConfig(network);
+        const baseUrl = config?.rpcUrl(alchemyKey).replace('/v2/', '/nft/v3/');
+        return {
+          name: network,
+          url: `${baseUrl}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=100`
+        };
+      });
 
       const allNfts: any[] = [];
 
@@ -580,12 +573,15 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
       const account = await client.evm.getOrCreateAccount({ name });
       const address = account.address;
 
-      // Fetch transactions from Base and Ethereum
-      const networks = [
-        { name: 'base', rpc: `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`, explorer: 'https://basescan.org' },
-        { name: 'ethereum', rpc: `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`, explorer: 'https://etherscan.io' },
-        { name: 'polygon', rpc: `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`, explorer: 'https://polygonscan.com' },
-      ];
+      // Fetch transactions from all mainnet networks
+      const networks = MAINNET_NETWORKS.map(network => {
+        const config = getChainConfig(network);
+        return {
+          name: network,
+          rpc: config?.rpcUrl(alchemyKey) || '',
+          explorer: config?.explorerUrl || '',
+        };
+      }).filter(n => n.rpc && n.explorer);
 
       const allTransactions: any[] = [];
 
@@ -762,15 +758,7 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
         // Fallback to viem
         logger.info(`[CDP API] Using viem fallback for transfer...`);
         
-        const chainMap: Record<string, any> = {
-          'base': base,
-          'base-sepolia': baseSepolia,
-          'ethereum': mainnet,
-          'ethereum-sepolia': sepolia,
-          'polygon': polygon,
-        };
-
-        const chain = chainMap[network];
+        const chain = getViemChain(network);
         if (!chain) {
           throw new Error(`Unsupported network: ${network}`);
         }
@@ -785,19 +773,16 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
           throw new Error('Alchemy API key not configured');
         }
 
-        const rpcUrls: Record<string, string> = {
-          'base': `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-          'base-sepolia': `https://base-sepolia.g.alchemy.com/v2/${alchemyKey}`,
-          'ethereum': `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-          'ethereum-sepolia': `https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`,
-          'polygon': `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-        };
+        const rpcUrl = getRpcUrl(network, alchemyKey);
+        if (!rpcUrl) {
+          throw new Error(`Could not get RPC URL for network: ${network}`);
+        }
 
         // Create wallet client
         const walletClient = createWalletClient({
           account: toAccount(account),
           chain,
-          transport: http(rpcUrls[network]),
+          transport: http(rpcUrl),
         });
 
         const amountBigInt = BigInt(amount);
@@ -895,23 +880,21 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
       // Use viem to send the NFT transaction
       const { createWalletClient, createPublicClient, http } = await import('viem');
       const { toAccount } = await import('viem/accounts');
-      const { base, mainnet, polygon } = await import('viem/chains');
       
-      const chainMap: Record<string, any> = {
-        base,
-        ethereum: mainnet,
-        polygon,
-      };
+      const chain = getViemChain(network);
+      if (!chain) {
+        return sendError(res, 400, 'INVALID_NETWORK', `Unsupported network: ${network}`);
+      }
       
-      const chain = chainMap[network] || base;
-      const alchemyKey = process.env.ALCHEMY_API_KEY || '';
-      const rpcMap: Record<string, string> = {
-        base: `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-        ethereum: `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-        polygon: `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-      };
+      const alchemyKey = process.env.ALCHEMY_API_KEY;
+      if (!alchemyKey) {
+        return sendError(res, 503, 'SERVICE_UNAVAILABLE', 'Alchemy API key not configured');
+      }
       
-      const rpcUrl = rpcMap[network] || rpcMap.base;
+      const rpcUrl = getRpcUrl(network, alchemyKey);
+      if (!rpcUrl) {
+        return sendError(res, 400, 'INVALID_NETWORK', `Could not get RPC URL for network: ${network}`);
+      }
       
       const walletClient = createWalletClient({
         account: toAccount(account),
