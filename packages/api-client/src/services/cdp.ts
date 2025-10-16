@@ -138,6 +138,26 @@ export interface SwapResponse {
   method: string;
 }
 
+export interface SearchTokenRequest {
+  query: string;
+  chain?: string;
+}
+
+export interface CoinGeckoToken {
+  id: string;
+  symbol: string;
+  name: string;
+  contractAddress: string | null;
+  chain: string | null;
+  icon: string | null;
+  price: number | null;
+  platforms: Record<string, string>;
+}
+
+export interface SearchTokenResponse {
+  tokens: CoinGeckoToken[];
+}
+
 /**
  * Service for interacting with CDP wallet endpoints
  */
@@ -203,6 +223,19 @@ export class CdpService extends BaseApiClient {
    */
   async swap(request: SwapRequest): Promise<SwapResponse> {
     const response = await this.post<SwapResponse>('/api/cdp/wallet/swap', request);
+    return response;
+  }
+
+  /**
+   * Search for tokens using CoinGecko
+   */
+  async searchTokens(request: SearchTokenRequest): Promise<SearchTokenResponse> {
+    const params = new URLSearchParams();
+    params.append('query', request.query);
+    if (request.chain) {
+      params.append('chain', request.chain);
+    }
+    const response = await this.get<SearchTokenResponse>(`/api/cdp/tokens/search?${params.toString()}`);
     return response;
   }
 }

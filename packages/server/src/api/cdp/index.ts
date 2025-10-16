@@ -1970,5 +1970,203 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
     }
   });
 
+  /**
+   * Search for tokens using CoinGecko API directly
+   */
+  router.get('/tokens/search', async (req, res) => {
+    try {
+      const { query, chain } = req.query;
+
+      if (!query || typeof query !== 'string' || query.length < 2) {
+        return sendError(res, 400, 'INVALID_REQUEST', 'Query parameter is required (min 2 characters)');
+      }
+
+      const apiKey = process.env.COINGECKO_API_KEY;
+      const isPro = Boolean(apiKey);
+      const baseUrl = isPro ? 'https://pro-api.coingecko.com/api/v3' : 'https://api.coingecko.com/api/v3';
+
+      logger.info(`[CDP API] Searching tokens: "${query}" on chain: ${chain || 'all'}`);
+
+      // Map chain names to CoinGecko platform IDs
+      const networkToPlatformId: Record<string, string> = {
+        'ethereum': 'ethereum',
+        'base': 'base',
+        'polygon': 'polygon-pos',
+        'arbitrum': 'arbitrum-one',
+        'optimism': 'optimistic-ethereum',
+      };
+
+      const chainIdToNetwork: Record<string, string> = {
+        'ethereum': 'ethereum',
+        'base': 'base',
+        'polygon-pos': 'polygon',
+        'arbitrum-one': 'arbitrum',
+        'optimistic-ethereum': 'optimism',
+      };
+
+      let tokens: any[] = [];
+
+      // Check if query is a contract address
+      const isAddress = /^0x[a-fA-F0-9]{40}$/.test(query);
+
+      if (isAddress) {
+        // Search by contract address
+        const platforms = chain && typeof chain === 'string' 
+          ? [networkToPlatformId[chain.toLowerCase()]] 
+          : ['ethereum', 'base', 'polygon-pos', 'arbitrum-one', 'optimistic-ethereum'];
+
+        for (const platformId of platforms) {
+          if (!platformId) continue;
+          
+          try {
+            const url = `${baseUrl}/coins/${platformId}/contract/${query}`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                ...(isPro && apiKey ? { 'x-cg-pro-api-key': apiKey } : {}),
+                'User-Agent': 'Otaku-CDP-Wallet/1.0',
+              },
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (response.ok) {
+              const data = await response.json();
+              const currentPrice = data.market_data?.current_price?.usd || null;
+
+              tokens.push({
+                id: data.id,
+                symbol: data.symbol?.toUpperCase() || 'UNKNOWN',
+                name: data.name || 'Unknown Token',
+                contractAddress: query,
+                chain: chainIdToNetwork[platformId] || platformId,
+                icon: data.image?.small || data.image?.thumb || null,
+                price: currentPrice,
+                platforms: data.platforms || {},
+              });
+              break; // Found it, no need to check other chains
+            }
+          } catch (error) {
+            logger.debug(`[CDP API] Contract search failed on ${platformId}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      } else {
+        // Search by symbol or name using search endpoint
+        const searchUrl = `${baseUrl}/search?query=${encodeURIComponent(query)}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        try {
+          const response = await fetch(searchUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              ...(isPro && apiKey ? { 'x-cg-pro-api-key': apiKey } : {}),
+              'User-Agent': 'Otaku-CDP-Wallet/1.0',
+            },
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeout);
+
+          if (!response.ok) {
+            throw new Error(`CoinGecko search failed: ${response.status}`);
+          }
+
+          const searchData = await response.json();
+          const coins = searchData.coins || [];
+
+          // Get detailed info for top results (limit to 10 for performance)
+          const topCoins = coins.slice(0, 10);
+          
+          for (const coin of topCoins) {
+            try {
+              const detailUrl = `${baseUrl}/coins/${coin.id}`;
+              const detailController = new AbortController();
+              const detailTimeout = setTimeout(() => detailController.abort(), 5000);
+
+              const detailResponse = await fetch(detailUrl, {
+                method: 'GET',
+                headers: {
+                  'Accept': 'application/json',
+                  ...(isPro && apiKey ? { 'x-cg-pro-api-key': apiKey } : {}),
+                  'User-Agent': 'Otaku-CDP-Wallet/1.0',
+                },
+                signal: detailController.signal,
+              });
+
+              clearTimeout(detailTimeout);
+
+              if (detailResponse.ok) {
+                const data = await detailResponse.json();
+                const platforms = data.platforms || {};
+                const currentPrice = data.market_data?.current_price?.usd || null;
+
+                // Find contract address for the requested chain or any supported chain
+                let contractAddress: string | null = null;
+                let tokenChain: string | null = null;
+
+                if (chain && typeof chain === 'string') {
+                  const platformId = networkToPlatformId[chain.toLowerCase()];
+                  if (platformId && platforms[platformId]) {
+                    contractAddress = platforms[platformId];
+                    tokenChain = chain.toLowerCase();
+                  }
+                } else {
+                  // Get first available supported chain
+                  for (const [platformId, address] of Object.entries(platforms)) {
+                    if (chainIdToNetwork[platformId] && address) {
+                      contractAddress = address as string;
+                      tokenChain = chainIdToNetwork[platformId];
+                      break;
+                    }
+                  }
+                }
+
+                if (contractAddress && tokenChain) {
+                  tokens.push({
+                    id: data.id,
+                    symbol: data.symbol?.toUpperCase() || 'UNKNOWN',
+                    name: data.name || 'Unknown Token',
+                    contractAddress,
+                    chain: tokenChain,
+                    icon: data.image?.small || data.image?.thumb || null,
+                    price: currentPrice,
+                    platforms: data.platforms || {},
+                  });
+                }
+              }
+            } catch (error) {
+              logger.debug(`[CDP API] Failed to fetch details for ${coin.id}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
+        } catch (error) {
+          logger.error(`[CDP API] CoinGecko search failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      logger.info(`[CDP API] Found ${tokens.length} tokens matching "${query}"`);
+
+      return sendSuccess(res, { tokens });
+    } catch (error) {
+      logger.error(
+        '[CDP API] Error searching tokens:',
+        error instanceof Error ? error.message : String(error)
+      );
+      return sendError(
+        res,
+        500,
+        'SEARCH_FAILED',
+        'Failed to search tokens',
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  });
+
   return router;
 }

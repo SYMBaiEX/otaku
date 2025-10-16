@@ -16,6 +16,7 @@ interface Token {
   chain: string;
   decimals: number;
   icon?: string;
+  isExternal?: boolean; // Flag for CoinGecko tokens not in wallet
 }
 
 interface SwapModalProps {
@@ -40,14 +41,56 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isFromDropdownOpen, setIsFromDropdownOpen] = useState(false);
   const [isToDropdownOpen, setIsToDropdownOpen] = useState(false);
+  const [fromSearchQuery, setFromSearchQuery] = useState('');
+  const [toSearchQuery, setToSearchQuery] = useState('');
+  const [toCoinGeckoResults, setToCoinGeckoResults] = useState<Token[]>([]);
+  const [isSearchingTo, setIsSearchingTo] = useState(false);
   const fromDropdownRef = useRef<HTMLDivElement>(null);
   const toDropdownRef = useRef<HTMLDivElement>(null);
+  const fromSearchInputRef = useRef<HTMLInputElement>(null);
+  const toSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Filter tokens for swap (CDP networks + 1inch supported networks)
   const SWAP_SUPPORTED_NETWORKS = ['base', 'ethereum', 'polygon', 'arbitrum', 'optimism'];
   const swapSupportedTokens = tokens.filter(t => 
     SWAP_SUPPORTED_NETWORKS.includes(t.chain)
   );
+
+  // Filter tokens based on search query
+  const filterTokens = (tokenList: Token[], query: string): Token[] => {
+    if (!query.trim()) return tokenList;
+    
+    const lowerQuery = query.toLowerCase().trim();
+    
+    return tokenList.filter(token => {
+      // Search by symbol
+      if (token.symbol.toLowerCase().includes(lowerQuery)) return true;
+      // Search by name
+      if (token.name.toLowerCase().includes(lowerQuery)) return true;
+      // Search by contract address
+      if (token.contractAddress && token.contractAddress.toLowerCase().includes(lowerQuery)) return true;
+      return false;
+    });
+  };
+
+  // Merge wallet tokens with CoinGecko results (deduplicate by contract address)
+  const mergeTokens = (walletTokens: Token[], coingeckoTokens: Token[]): Token[] => {
+    const merged = [...walletTokens];
+    const existingAddresses = new Set(
+      walletTokens
+        .filter(t => t.contractAddress)
+        .map(t => t.contractAddress!.toLowerCase())
+    );
+
+    // Add CoinGecko tokens that aren't already in wallet
+    for (const token of coingeckoTokens) {
+      if (token.contractAddress && !existingAddresses.has(token.contractAddress.toLowerCase())) {
+        merged.push(token);
+      }
+    }
+
+    return merged;
+  };
 
   // Helper function to convert amount to base units without scientific notation
   const convertToBaseUnits = (amount: string, decimals: number): string => {
@@ -64,9 +107,11 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
     const handleClickOutside = (event: MouseEvent) => {
       if (fromDropdownRef.current && !fromDropdownRef.current.contains(event.target as Node)) {
         setIsFromDropdownOpen(false);
+        setFromSearchQuery('');
       }
       if (toDropdownRef.current && !toDropdownRef.current.contains(event.target as Node)) {
         setIsToDropdownOpen(false);
+        setToSearchQuery('');
       }
     };
 
@@ -93,8 +138,68 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
       setTxHash(null);
       setIsFromDropdownOpen(false);
       setIsToDropdownOpen(false);
+      setFromSearchQuery('');
+      setToSearchQuery('');
     }
   }, [isOpen]);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isFromDropdownOpen && fromSearchInputRef.current) {
+      fromSearchInputRef.current.focus();
+    }
+  }, [isFromDropdownOpen]);
+
+  useEffect(() => {
+    if (isToDropdownOpen && toSearchInputRef.current) {
+      toSearchInputRef.current.focus();
+    }
+  }, [isToDropdownOpen]);
+
+  // Debounced CoinGecko search for "To" token (all supported chains)
+  useEffect(() => {
+    if (!toSearchQuery || toSearchQuery.length < 2) {
+      setToCoinGeckoResults([]);
+      return;
+    }
+
+    const searchCoinGecko = async () => {
+      setIsSearchingTo(true);
+      try {
+        const response = await (elizaClient.cdp as any).searchTokens({
+          query: toSearchQuery,
+          // Don't filter by chain - allow any supported chain
+        });
+
+        // Convert CoinGecko tokens to our Token interface
+        const externalTokens: Token[] = response.tokens
+          .filter((t: any) => t.contractAddress && t.chain && SWAP_SUPPORTED_NETWORKS.includes(t.chain))
+          .map((t: any) => ({
+            symbol: t.symbol,
+            name: t.name,
+            balance: '0',
+            balanceFormatted: '0',
+            usdValue: null,
+            usdPrice: t.price,
+            contractAddress: t.contractAddress,
+            chain: t.chain!,
+            decimals: 18, // Default, will need to fetch actual decimals if needed
+            icon: t.icon || undefined,
+            isExternal: true,
+          }));
+
+        setToCoinGeckoResults(externalTokens);
+      } catch (error) {
+        console.error('Failed to search CoinGecko tokens:', error);
+        setToCoinGeckoResults([]);
+      } finally {
+        setIsSearchingTo(false);
+      }
+    };
+
+    const timeoutId = setTimeout(searchCoinGecko, 500);
+    return () => clearTimeout(timeoutId);
+  }, [toSearchQuery]);
 
   // Debounced price estimation
   useEffect(() => {
@@ -112,6 +217,13 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
 
   const estimateSwapPrice = async () => {
     if (!fromToken || !toToken || !fromAmount || parseFloat(fromAmount) <= 0) {
+      return;
+    }
+
+    // Check if tokens are on the same chain
+    if (fromToken.chain !== toToken.chain) {
+      setToAmount('');
+      setError('Cross-chain swaps not supported. Please select tokens on the same chain.');
       return;
     }
 
@@ -166,6 +278,12 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
       return;
     }
 
+    // Check if tokens are on the same chain
+    if (fromToken.chain !== toToken.chain) {
+      setError('Cross-chain swaps not supported. Please select tokens on the same chain.');
+      return;
+    }
+
     const amount = parseFloat(fromAmount);
     const balance = parseFloat(fromToken.balanceFormatted);
 
@@ -214,11 +332,18 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
   };
 
   const handleSwitchTokens = () => {
+    // Don't switch if toToken is an external token (user doesn't own it)
+    if (toToken?.isExternal) {
+      setError('Cannot switch: You do not own the destination token');
+      return;
+    }
+    
     const temp = fromToken;
     setFromToken(toToken);
     setToToken(temp);
     setFromAmount('');
     setToAmount('');
+    setError(null);
   };
 
   const handleSetMaxAmount = () => {
@@ -270,23 +395,23 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
           {success ? (
             // Success State
             <div className="flex-1 overflow-y-auto">
-              <div className="space-y-4 py-4">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <span className="text-2xl">✓</span>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-medium text-green-500">Swap Successful!</p>
-                    {txHash && (
-                      <a 
-                        href={`https://${fromToken?.chain === 'base' ? 'basescan.org' : 'etherscan.io'}/tx/${txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-muted-foreground hover:text-foreground mt-1 inline-block"
-                      >
-                        View transaction →
-                      </a>
-                    )}
+            <div className="space-y-4 py-4">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <span className="text-2xl">✓</span>
+                </div>
+                <div className="text-center">
+                  <p className="font-medium text-green-500">Swap Successful!</p>
+                  {txHash && (
+                    <a 
+                      href={`https://${fromToken?.chain === 'base' ? 'basescan.org' : 'etherscan.io'}/tx/${txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:text-foreground mt-1 inline-block"
+                    >
+                      View transaction →
+                    </a>
+                  )}
                   </div>
                 </div>
               </div>
@@ -306,37 +431,55 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                       className="w-full p-3 border border-border rounded-lg flex items-center justify-between hover:bg-accent/50 transition-colors"
                     >
                       {fromToken ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                            {getTokenIcon(fromToken) ? (
-                              <img src={getTokenIcon(fromToken)!} alt={fromToken.symbol} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-sm font-bold text-muted-foreground uppercase">{fromToken.symbol.charAt(0)}</span>
-                            )}
+                        <>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                              {getTokenIcon(fromToken) ? (
+                                <img src={getTokenIcon(fromToken)!} alt={fromToken.symbol} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-sm font-bold text-muted-foreground uppercase">{fromToken.symbol.charAt(0)}</span>
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-medium">{fromToken.symbol}</p>
+                              <p className="text-xs text-muted-foreground">{fromToken.chain.toUpperCase()}</p>
+                            </div>
                           </div>
-                          <div className="text-left">
-                            <p className="text-sm font-medium">{fromToken.symbol}</p>
-                            <p className="text-xs text-muted-foreground">{fromToken.chain.toUpperCase()}</p>
+                          <div className="text-right">
+                            <p className="text-sm font-mono">{parseFloat(fromToken.balanceFormatted).toFixed(6)}</p>
+                            <p className="text-xs text-muted-foreground">${fromToken.usdValue?.toFixed(2) || '0.00'}</p>
                           </div>
-                        </div>
+                        </>
                       ) : (
                         <span className="text-muted-foreground">Select a token...</span>
                       )}
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
                     </button>
 
                     {/* Dropdown Menu */}
                     {isFromDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {swapSupportedTokens
-                          .filter(token => {
-                            // Hide the exact same token as toToken (same chain and same address/symbol)
-                            if (!toToken) return true;
-                            return !(token.chain === toToken.chain && (token.contractAddress || token.symbol) === (toToken.contractAddress || toToken.symbol));
-                          })
-                          .map((token, index) => {
+                      <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                        {/* Search Input */}
+                        <div className="p-2 border-b border-border sticky top-0 bg-popover">
+                          <input
+                            ref={fromSearchInputRef}
+                            type="text"
+                            value={fromSearchQuery}
+                            onChange={(e) => setFromSearchQuery(e.target.value)}
+                            placeholder="Search your tokens..."
+                            className="w-full bg-muted border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        
+                        {/* Token List */}
+                        <div className="max-h-64 overflow-y-auto">
+                          {filterTokens(swapSupportedTokens, fromSearchQuery)
+                            .filter(token => {
+                              // Hide the exact same token as toToken (same chain and same address/symbol)
+                              if (!toToken) return true;
+                              return !(token.chain === toToken.chain && (token.contractAddress || token.symbol) === (toToken.contractAddress || toToken.symbol));
+                            })
+                            .map((token, index) => {
                             return (
                               <button
                                 key={`${token.chain}-${token.contractAddress || token.symbol}-${index}`}
@@ -349,130 +492,11 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                                   if (toToken && toToken.chain !== token.chain) {
                                     setToToken(null);
                                   }
+                                  setFromSearchQuery('');
                                   setIsFromDropdownOpen(false);
                                 }}
                                 className={`w-full p-3 flex items-center justify-between hover:bg-accent transition-colors ${
                                   fromToken === token ? 'bg-accent' : ''
-                                }`}
-                              >
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                                  {getTokenIcon(token) ? (
-                                    <img src={getTokenIcon(token)!} alt={token.symbol} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-sm font-bold text-muted-foreground uppercase">{token.symbol.charAt(0)}</span>
-                                  )}
-                                </div>
-                                <div className="text-left">
-                                  <p className="text-sm font-medium">{token.symbol}</p>
-                                  <p className="text-xs text-muted-foreground">{token.chain.toUpperCase()}</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm font-mono">{parseFloat(token.balanceFormatted).toFixed(6)}</p>
-                                <p className="text-xs text-muted-foreground">${token.usdValue?.toFixed(2) || '0.00'}</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Amount Input - Always visible */}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={fromAmount}
-                      onChange={(e) => setFromAmount(e.target.value)}
-                      placeholder="0.0"
-                      step="any"
-                      min="0"
-                      disabled={!fromToken}
-                      className={`w-full bg-muted border border-border rounded-lg p-3 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
-                        !fromToken ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    />
-                    <Button
-                      onClick={handleSetMaxAmount}
-                      variant="ghost"
-                      size="sm"
-                      disabled={!fromToken}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-7 text-xs"
-                    >
-                      MAX
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Switch Button */}
-              <div className="flex justify-center">
-                <Button
-                  onClick={handleSwitchTokens}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 rounded-full"
-                  disabled={!fromToken && !toToken}
-                >
-                  <ArrowDownUp className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* To Token */}
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">To</label>
-                <div className="space-y-2" style={{ overflow: 'visible' }}>
-                  {/* Custom Dropdown */}
-                  <div className="relative" ref={toDropdownRef} style={{ zIndex: 50 }}>
-                    <button
-                      type="button"
-                      onClick={() => fromToken && setIsToDropdownOpen(!isToDropdownOpen)}
-                      disabled={!fromToken}
-                      className={`w-full p-3 border border-border rounded-lg flex items-center justify-between transition-colors ${
-                        !fromToken ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent/50'
-                      }`}
-                    >
-                      {toToken ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                            {getTokenIcon(toToken) ? (
-                              <img src={getTokenIcon(toToken)!} alt={toToken.symbol} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-sm font-bold text-muted-foreground uppercase">{toToken.symbol.charAt(0)}</span>
-                            )}
-                          </div>
-                          <div className="text-left">
-                            <p className="text-sm font-medium">{toToken.symbol}</p>
-                            <p className="text-xs text-muted-foreground">{toToken.chain.toUpperCase()}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Select a token...</span>
-                      )}
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    {isToDropdownOpen && fromToken && (
-                      <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {swapSupportedTokens
-                          .filter(t => t.chain === fromToken.chain) // Only show tokens on the same chain as fromToken
-                          .filter(t => (t.contractAddress || t.symbol) !== (fromToken.contractAddress || fromToken.symbol)) // Hide the same token as fromToken
-                          .map((token, index) => {
-                            return (
-                              <button
-                                key={`${token.chain}-${token.contractAddress || token.symbol}-${index}`}
-                                type="button"
-                                onClick={() => {
-                                  setToToken(token);
-                                  setToAmount('');
-                                  setIsToDropdownOpen(false);
-                                }}
-                                className={`w-full p-3 flex items-center justify-between hover:bg-accent transition-colors ${
-                                  toToken === token ? 'bg-accent' : ''
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
@@ -495,26 +519,251 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                               </button>
                             );
                           })}
+                          
+                          {/* No results message */}
+                          {filterTokens(swapSupportedTokens, fromSearchQuery)
+                            .filter(token => {
+                              if (!toToken) return true;
+                              return !(token.chain === toToken.chain && (token.contractAddress || token.symbol) === (toToken.contractAddress || toToken.symbol));
+                            }).length === 0 && (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              No tokens found
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  )}
+                  </div>
+
+                  {/* Amount Input - Always visible */}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={fromAmount}
+                        onChange={(e) => setFromAmount(e.target.value)}
+                        placeholder="0.0"
+                        step="any"
+                        min="0"
+                      disabled={!fromToken}
+                      className={`w-full bg-muted border border-border rounded-lg p-3 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
+                        !fromToken ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      />
+                      <Button
+                        onClick={handleSetMaxAmount}
+                        variant="ghost"
+                        size="sm"
+                      disabled={!fromToken}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 text-xs"
+                      >
+                        MAX
+                      </Button>
+                    </div>
+                </div>
+              </div>
+
+              {/* Switch Button */}
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleSwitchTokens}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                  disabled={!fromToken && !toToken || toToken?.isExternal}
+                  title={toToken?.isExternal ? 'Cannot switch: You do not own the destination token' : 'Switch tokens'}
+                >
+                  <ArrowDownUp className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* To Token */}
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">To</label>
+                <div className="space-y-2" style={{ overflow: 'visible' }}>
+                  {/* Custom Dropdown */}
+                  <div className="relative" ref={toDropdownRef} style={{ zIndex: 50 }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsToDropdownOpen(!isToDropdownOpen)}
+                      className="w-full p-3 border border-border rounded-lg flex items-center justify-between transition-colors hover:bg-accent/50"
+                    >
+                      {toToken ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                              {getTokenIcon(toToken) ? (
+                                <img src={getTokenIcon(toToken)!} alt={toToken.symbol} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-sm font-bold text-muted-foreground uppercase">{toToken.symbol.charAt(0)}</span>
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-medium">
+                                {toToken.symbol}
+                                {toToken.isExternal && <span className="ml-1 text-xs text-blue-500">🌐</span>}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{toToken.chain.toUpperCase()}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {toToken.isExternal ? (
+                              <p className="text-xs text-muted-foreground">
+                                {toToken.usdPrice ? `$${toToken.usdPrice.toFixed(4)}` : 'External'}
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-sm font-mono">{parseFloat(toToken.balanceFormatted).toFixed(6)}</p>
+                                <p className="text-xs text-muted-foreground">${toToken.usdValue?.toFixed(2) || '0.00'}</p>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Select a token...</span>
+                      )}
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isToDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                        {/* Search Input */}
+                        <div className="p-2 border-b border-border sticky top-0 bg-popover">
+                          <input
+                            ref={toSearchInputRef}
+                            type="text"
+                            value={toSearchQuery}
+                            onChange={(e) => setToSearchQuery(e.target.value)}
+                            placeholder="Search any token (name, symbol, address)..."
+                            className="w-full bg-muted border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                      </div>
+                        
+                        {/* Token List */}
+                        <div className="max-h-64 overflow-y-auto">
+                          {/* Show loading indicator */}
+                          {isSearchingTo && toSearchQuery.length >= 2 && (
+                            <div className="p-3 flex items-center justify-center text-sm text-muted-foreground">
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Searching CoinGecko...
+                    </div>
+                  )}
+
+                          {mergeTokens(
+                            filterTokens(swapSupportedTokens, toSearchQuery),
+                            toCoinGeckoResults
+                          )
+                            .filter(t => {
+                              // Hide the exact same token as fromToken (same chain and same address/symbol)
+                              if (!fromToken) return true;
+                              return !(t.chain === fromToken.chain && (t.contractAddress || t.symbol) === (fromToken.contractAddress || fromToken.symbol));
+                            })
+                            .map((token, index) => {
+                            return (
+                              <button
+                                key={`${token.chain}-${token.contractAddress || token.symbol}-${index}`}
+                                type="button"
+                                onClick={() => {
+                                  // If this is an external token, check if user owns it in their wallet
+                                  let selectedToken = token;
+                                  if (token.isExternal && token.contractAddress) {
+                                    // Find the wallet version of this token
+                                    const walletVersion = swapSupportedTokens.find(
+                                      t => t.chain === token.chain && 
+                                      t.contractAddress?.toLowerCase() === token.contractAddress?.toLowerCase()
+                                    );
+                                    if (walletVersion) {
+                                      selectedToken = walletVersion; // Use wallet version with balance
+                                    }
+                                  }
+                                  
+                                  setToToken(selectedToken);
+                                  setToAmount('');
+                                  setToSearchQuery('');
+                                  // Reset fromToken if different chain selected
+                                  if (fromToken && fromToken.chain !== selectedToken.chain) {
+                                    setFromToken(null);
+                                    setFromAmount('');
+                                  }
+                                  setIsToDropdownOpen(false);
+                                }}
+                                className={`w-full p-3 flex items-center justify-between hover:bg-accent transition-colors ${
+                                  toToken === token ? 'bg-accent' : ''
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                                    {getTokenIcon(token) ? (
+                                      <img src={getTokenIcon(token)!} alt={token.symbol} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="text-sm font-bold text-muted-foreground uppercase">{token.symbol.charAt(0)}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-sm font-medium">
+                                      {token.symbol}
+                                      {token.isExternal && <span className="ml-1 text-xs text-blue-500">🌐</span>}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">{token.chain.toUpperCase()}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  {token.isExternal ? (
+                                    <>
+                                      <p className="text-xs text-muted-foreground">
+                                        {token.usdPrice ? `$${token.usdPrice.toFixed(4)}` : 'External'}
+                                      </p>
+                                      {/* Check if user actually owns this token */}
+                                      {swapSupportedTokens.find(
+                                        t => t.chain === token.chain && 
+                                        t.contractAddress?.toLowerCase() === token.contractAddress?.toLowerCase()
+                                      ) && (
+                                        <p className="text-xs text-green-500">✓ Owned</p>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="text-sm font-mono">{parseFloat(token.balanceFormatted).toFixed(6)}</p>
+                                      <p className="text-xs text-muted-foreground">${token.usdValue?.toFixed(2) || '0.00'}</p>
+                                    </>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                          
+                          {/* No results message */}
+                          {!isSearchingTo && mergeTokens(filterTokens(swapSupportedTokens, toSearchQuery), toCoinGeckoResults)
+                            .filter(t => {
+                              if (!fromToken) return true;
+                              return !(t.chain === fromToken.chain && (t.contractAddress || t.symbol) === (fromToken.contractAddress || fromToken.symbol));
+                            })
+                            .length === 0 && (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              No tokens found
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
 
                   {/* Estimated Amount - Always visible */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={isLoadingPrice ? 'Calculating...' : toAmount}
-                      readOnly
-                      placeholder="0.0"
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={isLoadingPrice ? 'Calculating...' : toAmount}
+                        readOnly
+                        placeholder="0.0"
                       disabled={!toToken}
                       className={`w-full bg-muted border border-border rounded-lg p-3 text-sm focus:outline-none cursor-not-allowed ${
                         !toToken ? 'opacity-50' : ''
                       }`}
-                    />
-                    {isLoadingPrice && (
-                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
+                      />
+                      {isLoadingPrice && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
                 </div>
               </div>
 
