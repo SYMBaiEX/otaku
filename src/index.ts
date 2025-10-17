@@ -6,6 +6,8 @@ import openaiPlugin from '@elizaos/plugin-openai';
 import anthropicPlugin from '@elizaos/plugin-anthropic';
 import cdpPlugin from './plugins/plugin-cdp/index.ts';
 import coingeckoPlugin from './plugins/plugin-coingecko/src/index.ts';
+import webSearchPlugin from './plugins/plugin-web-search/src/index.ts';
+import defiLlamaPlugin from './plugins/plugin-defillama/src/index.ts';
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
   logger.info('Initializing character');
@@ -16,7 +18,16 @@ export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
   // Import actual plugin modules instead of using string names
-  plugins: [sqlPlugin, bootstrapPlugin, anthropicPlugin, openaiPlugin, cdpPlugin, coingeckoPlugin],
+  plugins: [
+    sqlPlugin, 
+    bootstrapPlugin, 
+    anthropicPlugin, 
+    openaiPlugin, 
+    cdpPlugin, 
+    coingeckoPlugin, 
+    webSearchPlugin,
+    defiLlamaPlugin
+  ],
 };
 
 const project: Project = {
