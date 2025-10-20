@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../ui/button';
 import { X, ArrowDownUp, Loader2 } from 'lucide-react';
+import { useLoadingPanel } from '../../../contexts/LoadingPanelContext';
 import { elizaClient } from '../../../lib/elizaClient';
 import { getTokenIconBySymbol, getTxExplorerUrl } from '../../../constants/chains';
 
@@ -28,17 +29,16 @@ interface SwapModalProps {
 }
 
 export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapModalProps) {
+  const { showLoading, showSuccess, showError } = useLoadingPanel();
+  const modalId = 'swap-modal';
+  
   const [fromToken, setFromToken] = useState<Token | null>(null);
   const [toToken, setToToken] = useState<Token | null>(null);
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
   const [slippage, setSlippage] = useState('1'); // 1% default
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const [isFromDropdownOpen, setIsFromDropdownOpen] = useState(false);
   const [isToDropdownOpen, setIsToDropdownOpen] = useState(false);
   const [fromSearchQuery, setFromSearchQuery] = useState('');
@@ -132,10 +132,7 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
       setFromAmount('');
       setToAmount('');
       setSlippage('1');
-      setError(null);
       setWarning(null);
-      setSuccess(false);
-      setTxHash(null);
       setIsFromDropdownOpen(false);
       setIsToDropdownOpen(false);
       setFromSearchQuery('');
@@ -223,12 +220,11 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
     // Check if tokens are on the same chain
     if (fromToken.chain !== toToken.chain) {
       setToAmount('');
-      setError('Cross-chain swaps not supported. Please select tokens on the same chain.');
+      setWarning('Cross-chain swaps not supported. Please select tokens on the same chain.');
       return;
     }
 
     setIsLoadingPrice(true);
-    setError(null);
     setWarning(null);
 
     try {
@@ -261,12 +257,12 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
       } else {
         // CDP network but no liquidity
         setToAmount('');
-        setError('Insufficient liquidity for this swap');
+        setWarning('Insufficient liquidity for this swap');
       }
     } catch (err) {
       console.error('Error estimating swap price:', err);
       setToAmount('');
-      setError('Failed to get swap price. Please try again.');
+      setWarning('Failed to get swap price. Please try again.');
     } finally {
       setIsLoadingPrice(false);
     }
@@ -274,13 +270,13 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
 
   const handleSwap = async () => {
     if (!fromToken || !toToken || !fromAmount || parseFloat(fromAmount) <= 0) {
-      setError('Please enter a valid amount');
+      showError('Validation Error', 'Please enter a valid amount', modalId);
       return;
     }
 
     // Check if tokens are on the same chain
     if (fromToken.chain !== toToken.chain) {
-      setError('Cross-chain swaps not supported. Please select tokens on the same chain.');
+      showError('Validation Error', 'Cross-chain swaps not supported. Please select tokens on the same chain.', modalId);
       return;
     }
 
@@ -288,15 +284,13 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
     const balance = parseFloat(fromToken.balanceFormatted);
 
     if (amount > balance) {
-      setError(`Insufficient ${fromToken.symbol} balance`);
+      showError('Insufficient Balance', `Insufficient ${fromToken.symbol} balance`, modalId);
       return;
     }
 
-    setIsSending(true);
-    setError(null);
-    setSuccess(false);
-
     try {
+      showLoading('Swapping Tokens', 'Please wait while we process your swap...', modalId);
+      
       // Convert amount to base units - avoid scientific notation
       const amountInBaseUnits = convertToBaseUnits(fromAmount, fromToken.decimals);
       
@@ -316,25 +310,35 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
         slippageBps,
       });
 
-      setTxHash(result.transactionHash);
-      setSuccess(true);
+      console.log('✅ Swap successful:', result);
       
-      // Wait a bit before closing to show success message
-      setTimeout(() => {
-        onSuccess();
-      }, 2000);
+      // Show success
+      showSuccess(
+        'Swap Successful!',
+        `Successfully swapped ${fromAmount} ${fromToken.symbol} to ${toToken.symbol}`,
+        modalId,
+        false // Don't auto-close
+      );
+      
+      // Reset form
+      setFromToken(null);
+      setToToken(null);
+      setFromAmount('');
+      setToAmount('');
+      
+      // Trigger wallet refresh
+      onSuccess();
+      
     } catch (err: any) {
       console.error('Error executing swap:', err);
-      setError(err?.message || 'Failed to execute swap. Please try again.');
-    } finally {
-      setIsSending(false);
+      showError('Swap Failed', err?.message || 'Failed to execute swap. Please try again.', modalId);
     }
   };
 
   const handleSwitchTokens = () => {
     // Don't switch if toToken is an external token (user doesn't own it)
     if (toToken?.isExternal) {
-      setError('Cannot switch: You do not own the destination token');
+      showError('Cannot Switch', 'You do not own the destination token', modalId);
       return;
     }
     
@@ -343,7 +347,8 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
     setToToken(temp);
     setFromAmount('');
     setToAmount('');
-    setError(null);
+    setIsLoadingPrice(false); // Stop any ongoing price calculation
+    setWarning(null);
   };
 
   const handleSetMaxAmount = () => {
@@ -371,16 +376,16 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div 
-        className="bg-background rounded-lg max-w-md w-full max-h-[90vh] p-1.5"
+        className="bg-background rounded-lg max-w-md w-full my-auto p-1.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-pop rounded-lg p-4 sm:p-6 space-y-4 max-h-[calc(90vh-0.75rem)] flex flex-col">
+        <div className="bg-pop rounded-lg p-4 sm:p-6 space-y-4 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-shrink-0">
             <h3 className="text-lg font-semibold">Swap Tokens</h3>
             <Button
               onClick={onClose}
@@ -392,32 +397,7 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
             </Button>
           </div>
 
-          {success ? (
-            // Success State
-            <div className="flex-1 overflow-y-auto">
-            <div className="space-y-4 py-4">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <span className="text-2xl">✓</span>
-                </div>
-                <div className="text-center">
-                  <p className="font-medium text-green-500">Swap Successful!</p>
-                  {txHash && fromToken?.chain && (
-                    <a 
-                      href={getTxExplorerUrl(fromToken.chain, txHash) || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-muted-foreground hover:text-foreground mt-1 inline-block"
-                    >
-                      View transaction →
-                    </a>
-                  )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto space-y-4">
+          <div className="flex-1 overflow-visible space-y-4 min-h-0">
 
               {/* From Token */}
               <div className="space-y-2">
@@ -645,7 +625,7 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                           {isSearchingTo && toSearchQuery.length >= 2 && (
                             <div className="p-3 flex items-center justify-center text-sm text-muted-foreground">
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Searching CoinGecko...
+                              Searching Tokens...
                     </div>
                   )}
 
@@ -801,20 +781,12 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                 </div>
               )}
 
-              {/* Error Message */}
-              {error && (
-                <div className="text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20">
-                  {error}
-                </div>
-              )}
-
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 flex-shrink-0">
                 <Button
                   onClick={onClose}
                   variant="outline"
                   className="flex-1"
-                  disabled={isSending}
                 >
                   Cancel
                 </Button>
@@ -827,15 +799,13 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                     !fromAmount || 
                     !toAmount || 
                     parseFloat(fromAmount) <= 0 ||
-                    isSending ||
-                    isLoadingPrice ||
-                    !!error
+                    isLoadingPrice
                   }
                 >
-                  {isSending ? (
+                  {isLoadingPrice ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Swapping...
+                      Calculating...
                     </>
                   ) : (
                     'Swap'
@@ -843,7 +813,6 @@ export function SwapModal({ isOpen, onClose, tokens, userId, onSuccess }: SwapMo
                 </Button>
               </div>
             </div>
-          )}
         </div>
       </div>
     </div>,

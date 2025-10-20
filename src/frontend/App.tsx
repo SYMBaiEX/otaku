@@ -9,10 +9,11 @@ import { SidebarProvider } from './components/ui/sidebar';
 import { DashboardSidebar } from './components/dashboard/sidebar';
 import Widget from './components/dashboard/widget';
 import { CDPWalletCard } from './components/dashboard/cdp-wallet-card';
+import CollapsibleNotifications from './components/dashboard/notifications/collapsible-notifications';
 import AccountPage from './components/dashboard/account/page';
 import { SignInModal } from './components/auth/SignInModal';
 import { MobileHeader } from './components/dashboard/mobile-header';
-import { LoadingPanel } from './components/ui/loading-panel';
+import { LoadingPanelProvider, useLoadingPanel } from './contexts/LoadingPanelContext';
 import { MessageSquare } from 'lucide-react';
 import mockDataJson from './mock.json';
 import type { MockData } from './types/dashboard';
@@ -92,14 +93,15 @@ interface Channel {
 function App() {
   // Get CDP wallet info (will be undefined if not configured or not signed in)
   const { isInitialized, isSignedIn, userEmail, signOut } = useCDPWallet();
-  
+
+  const { showLoading, hide } = useLoadingPanel();
   const [userId, setUserId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(true);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'chat' | 'account' | 'settings'>('chat');
+  const [currentView, setCurrentView] = useState<'chat' | 'account'>('chat');
   const [totalBalance, setTotalBalance] = useState(0);
   const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(true);
 
@@ -124,6 +126,23 @@ function App() {
     memberSince: string;
   } | null>(null);
   const hasInitialized = useRef(false);
+
+  // Control global loading panel based on app state
+  useEffect(() => {
+    const loadingPanelId = 'app-loading';
+    
+    if (loadingMessage && loadingMessage.length > 0) {
+      showLoading('Initializing...', loadingMessage, loadingPanelId);
+    } else if (currentView === 'chat' && (!userId || !connected || isLoadingChannels || !activeChannelId)) {
+      const message = !userId ? 'Initializing user...' : 
+                     !connected ? 'Connecting to server...' :
+                     isLoadingChannels ? 'Loading channels...' : 
+                     'Select a chat';
+      showLoading('Loading Chat...', message, loadingPanelId);
+    } else {
+      hide(loadingPanelId);
+    }
+  }, [loadingMessage, currentView, userId, connected, isLoadingChannels, activeChannelId, showLoading, hide]);
 
   // Initialize or update user ID when wallet address changes
   // Wait for CDP to initialize before generating user ID
@@ -635,9 +654,6 @@ function App() {
         <SignInModal isOpen={!isSignedIn} />
       )}
       
-      {/* Unified Loading Panel - Shows during initialization or profile loading */}
-      {loadingMessage && <LoadingPanel title="Initializing..." messages={loadingMessage} />}
-      
       {/* Mobile Header */}
       <MobileHeader mockData={mockData} />
 
@@ -660,12 +676,11 @@ function App() {
             userProfile={userProfile}
             onSignOut={signOut}
             onAccountClick={() => setCurrentView('account')}
-            onSettingsClick={() => setCurrentView('settings')}
             onHomeClick={() => setCurrentView('chat')}
           />
         </div>
 
-        {/* Center - Chat Interface / Account / Settings */}
+        {/* Center - Chat Interface / Account */}
         <div className="col-span-1 lg:col-span-7">
           {currentView === 'account' ? (
             <AccountPage 
@@ -673,23 +688,6 @@ function App() {
               userProfile={userProfile}
               onUpdateProfile={updateUserProfile}
             />
-          ) : currentView === 'settings' ? (
-            <div className="flex flex-col relative w-full gap-1 min-h-full">
-              <div className="flex items-center lg:items-baseline gap-2.5 md:gap-4 px-4 md:px-6 py-3 md:pb-4 lg:pt-7 ring-2 ring-pop sticky top-header-mobile lg:top-0 bg-background z-10">
-                <h1 className="text-xl lg:text-4xl font-display leading-[1] mb-1">
-                  Settings
-                </h1>
-                <span className="ml-auto text-xs md:text-sm text-muted-foreground block uppercase">
-                  Coming Soon
-                </span>
-              </div>
-              <div className="min-h-full flex-1 flex items-center justify-center ring-2 ring-pop bg-background">
-                <div className="text-center text-muted-foreground">
-                  <h2 className="text-2xl font-bold mb-2">Settings</h2>
-                  <p>Coming soon...</p>
-                </div>
-              </div>
-            </div>
           ) : (
             <div className="flex flex-col relative w-full gap-1 min-h-full">
               {/* Header */}
@@ -717,19 +715,7 @@ function App() {
               
               {/* Content Area */}
               <div className="min-h-full flex-1 flex flex-col gap-8 md:gap-14 px-3 lg:px-6 py-6 md:py-10 ring-2 ring-pop bg-background">
-                {!userId || !connected || isLoadingChannels || !activeChannelId ? (
-                  <div className="flex items-center justify-center h-[calc(100vh-12rem)]">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                      <p className="mt-4 text-muted-foreground uppercase tracking-wider text-sm font-mono">
-                        {!userId ? 'Initializing user...' : 
-                         !connected ? 'Connecting to server...' :
-                         isLoadingChannels ? 'Loading channels...' : 
-                         'Select a chat'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
+                {userId && connected && !isLoadingChannels && activeChannelId && (
                   <ChatInterface
                     agent={agent}
                     userId={userId}
@@ -742,11 +728,12 @@ function App() {
           )}
         </div>
 
-        {/* Right Sidebar - Widget & CDP Wallet */}
+        {/* Right Sidebar - Widget & CDP Wallet & Notifications */}
         <div className="col-span-3 hidden lg:block">
           <div className="space-y-gap py-sides min-h-screen max-h-screen sticky top-0 overflow-clip">
             <Widget widgetData={mockData.widgetData} />
             {userId && <CDPWalletCard userId={userId} walletAddress={userProfile?.walletAddress} onBalanceChange={setTotalBalance} />}
+            <CollapsibleNotifications />
           </div>
         </div>
       </div>
@@ -754,14 +741,18 @@ function App() {
   );
 }
 
-// Wrap App with CDP Provider (if configured)
+// Wrap App with CDP Provider (if configured) and LoadingPanelProvider
 export default function AppWithCDP() {
   const cdpProjectId = import.meta.env.VITE_CDP_PROJECT_ID;
   const isCdpConfigured = cdpProjectId;
 
-  // If CDP is not configured, just return App without the provider
+  // If CDP is not configured, just return App without the CDP provider
   if (!isCdpConfigured) {
-    return <App />;
+    return (
+      <LoadingPanelProvider>
+        <App />
+      </LoadingPanelProvider>
+    );
   }
 
   return (
@@ -774,7 +765,9 @@ export default function AppWithCDP() {
         appName: "Otaku AI Agent"
       }}
     >
-      <App />
+      <LoadingPanelProvider>
+        <App />
+      </LoadingPanelProvider>
     </CDPReactProvider>
   );
 }

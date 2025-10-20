@@ -298,7 +298,7 @@ export function CDPWalletCard({ userId, walletAddress, onBalanceChange }: CDPWal
           {isRefreshing ? 'Refreshing...' : 'Refresh'}
         </Button>
       </CardHeader>
-      <CardContent className="bg-accent p-1.5 flex-1 overflow-auto relative w-full">
+      <CardContent className="bg-accent p-2 flex-1 flex-col overflow-auto relative w-full">
         <div className="space-y-4 bg-background rounded-lg p-3 sm:p-4 border border-border/30 w-full overflow-hidden">
           {/* Error message */}
           {tokensError && (
@@ -322,7 +322,6 @@ export function CDPWalletCard({ userId, walletAddress, onBalanceChange }: CDPWal
               </div>
             )}
           </div>
-
           {/* Action Buttons - Before tabs */}
           <div className="grid grid-cols-3 gap-2">
             <Button 
@@ -352,7 +351,9 @@ export function CDPWalletCard({ userId, walletAddress, onBalanceChange }: CDPWal
               Swap
             </Button>
           </div>
+        </div>
 
+        <div className="mt-2 space-y-4 bg-background rounded-lg p-3 sm:p-4 border border-border/30 w-full overflow-hidden">
           {/* Tabs */}
           <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-hide">
             <button

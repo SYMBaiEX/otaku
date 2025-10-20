@@ -17,7 +17,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import GearIcon from "@/components/icons/gear"
 import MonkeyIcon from "@/components/icons/monkey"
 import DotsVerticalIcon from "@/components/icons/dots-vertical"
 import { Bullet } from "@/components/ui/bullet"
@@ -47,7 +46,6 @@ interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
   } | null
   onSignOut?: () => void
   onAccountClick?: () => void
-  onSettingsClick?: () => void
   onHomeClick?: () => void
 }
 
@@ -61,11 +59,85 @@ export function DashboardSidebar({
   userProfile,
   onSignOut,
   onAccountClick,
-  onSettingsClick,
   onHomeClick,
   ...props
 }: DashboardSidebarProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  // Group channels by date
+  const groupChannelsByDate = (channels: Channel[]) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const lastMonth = new Date(today);
+    lastMonth.setDate(lastMonth.getDate() - 30);
+
+    const groups: {
+      today: Channel[];
+      yesterday: Channel[];
+      lastWeek: Channel[];
+      lastMonth: Channel[];
+      older: Map<string, Channel[]>; // Map of date string to channels
+    } = {
+      today: [],
+      yesterday: [],
+      lastWeek: [],
+      lastMonth: [],
+      older: new Map(),
+    };
+
+    channels.forEach(channel => {
+      const timestamp = channel.lastMessageAt || channel.createdAt;
+      if (!timestamp || timestamp <= 0) {
+        const dateKey = 'Unknown Date';
+        if (!groups.older.has(dateKey)) {
+          groups.older.set(dateKey, []);
+        }
+        groups.older.get(dateKey)!.push(channel);
+        return;
+      }
+
+      const channelDate = new Date(timestamp);
+      
+      if (channelDate >= today) {
+        groups.today.push(channel);
+      } else if (channelDate >= yesterday) {
+        groups.yesterday.push(channel);
+      } else if (channelDate >= lastWeek) {
+        groups.lastWeek.push(channel);
+      } else if (channelDate >= lastMonth) {
+        groups.lastMonth.push(channel);
+      } else {
+        // Format date as "MMM DD, YYYY" for items older than 30 days
+        const dateKey = channelDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: '2-digit', 
+          year: 'numeric' 
+        });
+        if (!groups.older.has(dateKey)) {
+          groups.older.set(dateKey, []);
+        }
+        groups.older.get(dateKey)!.push(channel);
+      }
+    });
+
+    // Sort older dates in descending order (most recent first)
+    const sortedOlderEntries = Array.from(groups.older.entries()).sort((a, b) => {
+      // Get the first channel's timestamp from each group
+      const aTime = a[1][0]?.lastMessageAt || a[1][0]?.createdAt || 0;
+      const bTime = b[1][0]?.lastMessageAt || b[1][0]?.createdAt || 0;
+      return bTime - aTime;
+    });
+    
+    groups.older = new Map(sortedOlderEntries);
+
+    return groups;
+  };
+
+  const groupedChannels = groupChannelsByDate(channels);
 
   return (
     <Sidebar {...props} className={cn("py-sides", className)}>
@@ -122,43 +194,121 @@ export function DashboardSidebar({
                     </p>
                   </div>
                 ) : (
-                  channels.map((channel) => {
-                    const isActive = activeChannelId === channel.id
-                    
-                    return (
-                      <SidebarMenuItem key={channel.id}>
-                        <SidebarMenuButton
-                          onClick={() => onChannelSelect(channel.id)}
-                          isActive={isActive}
-                          className="w-full"
-                        >
-                          <div className="flex flex-col items-start gap-1 w-full min-w-0">
-                            <span className="font-medium text-sm truncate w-full">
-                              {channel.name}
-                            </span>
-                            {(() => {
-                              const timestamp = channel.lastMessageAt || channel.createdAt;
-                              if (timestamp && timestamp > 0) {
-                                return (
-                                  <span className="text-xs text-muted-foreground uppercase">
-                                    {new Date(timestamp).toLocaleDateString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric',
-                                    })}, {new Date(timestamp).toLocaleTimeString('en-US', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: false
-                                    })}
+                  <>
+                    {/* Today */}
+                    {groupedChannels.today.length > 0 && (
+                      <>
+                        <div className="sticky top-0 z-10 bg-background text-[10px] font-mono text-muted-foreground mb-1.5 uppercase tracking-wider border-b border-border/50 pb-1 px-2">
+                          Today
+                        </div>
+                        {groupedChannels.today.map((channel) => (
+                          <SidebarMenuItem key={channel.id}>
+                            <SidebarMenuButton
+                              onClick={() => onChannelSelect(channel.id)}
+                              isActive={activeChannelId === channel.id}
+                              className="w-full"
+                            >
+                              <span className="font-medium text-sm truncate w-full">
+                                {channel.name}
+                              </span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Yesterday */}
+                    {groupedChannels.yesterday.length > 0 && (
+                      <>
+                        <div className="sticky top-0 z-10 bg-background text-[10px] font-mono text-muted-foreground mb-1.5 uppercase tracking-wider border-b border-border/50 pb-1 px-2 mt-2">
+                          Yesterday
+                        </div>
+                        {groupedChannels.yesterday.map((channel) => (
+                          <SidebarMenuItem key={channel.id}>
+                            <SidebarMenuButton
+                              onClick={() => onChannelSelect(channel.id)}
+                              isActive={activeChannelId === channel.id}
+                              className="w-full"
+                            >
+                              <span className="font-medium text-sm truncate w-full">
+                                {channel.name}
+                              </span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Last 7 Days */}
+                    {groupedChannels.lastWeek.length > 0 && (
+                      <>
+                        <div className="sticky top-0 z-10 bg-background text-[10px] font-mono text-muted-foreground mb-1.5 uppercase tracking-wider border-b border-border/50 pb-1 px-2 mt-2">
+                          Last 7 Days
+                        </div>
+                        {groupedChannels.lastWeek.map((channel) => (
+                          <SidebarMenuItem key={channel.id}>
+                            <SidebarMenuButton
+                              onClick={() => onChannelSelect(channel.id)}
+                              isActive={activeChannelId === channel.id}
+                              className="w-full"
+                            >
+                              <span className="font-medium text-sm truncate w-full">
+                                {channel.name}
+                              </span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Last 30 Days */}
+                    {groupedChannels.lastMonth.length > 0 && (
+                      <>
+                        <div className="sticky top-0 z-10 bg-background text-[10px] font-mono text-muted-foreground mb-1.5 uppercase tracking-wider border-b border-border/50 pb-1 px-2 mt-2">
+                          Last 30 Days
+                        </div>
+                        {groupedChannels.lastMonth.map((channel) => (
+                          <SidebarMenuItem key={channel.id}>
+                            <SidebarMenuButton
+                              onClick={() => onChannelSelect(channel.id)}
+                              isActive={activeChannelId === channel.id}
+                              className="w-full"
+                            >
+                              <span className="font-medium text-sm truncate w-full">
+                                {channel.name}
+                              </span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Older - Group by exact date */}
+                    {groupedChannels.older.size > 0 && (
+                      <>
+                        {Array.from(groupedChannels.older.entries()).map(([date, channels]) => (
+                          <div key={date}>
+                            <div className="sticky top-0 z-10 bg-background text-[10px] font-mono text-muted-foreground mb-1.5 uppercase tracking-wider border-b border-border/50 pb-1 px-2 mt-2">
+                              {date}
+                            </div>
+                            {channels.map((channel) => (
+                              <SidebarMenuItem key={channel.id}>
+                                <SidebarMenuButton
+                                  onClick={() => onChannelSelect(channel.id)}
+                                  isActive={activeChannelId === channel.id}
+                                  className="w-full"
+                                >
+                                  <span className="font-medium text-sm truncate w-full">
+                                    {channel.name}
                                   </span>
-                                );
-                              }
-                              return null;
-                            })()}
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            ))}
                           </div>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })
+                        ))}
+                      </>
+                    )}
+                  </>
                 )}
               </SidebarMenu>
             </div>
@@ -206,18 +356,6 @@ export function DashboardSidebar({
                         >
                           <MonkeyIcon className="mr-2 h-4 w-4" />
                           Account
-                        </button>
-                      )}
-                      {onSettingsClick && (
-                        <button 
-                          onClick={() => {
-                            onSettingsClick();
-                            setIsPopoverOpen(false);
-                          }}
-                          className="flex items-center px-4 py-2 text-sm hover:bg-accent text-left w-full"
-                        >
-                          <GearIcon className="mr-2 h-4 w-4" />
-                          Settings
                         </button>
                       )}
                       {onSignOut && (

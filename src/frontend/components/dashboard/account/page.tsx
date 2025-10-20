@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useLoadingPanel } from "@/contexts/LoadingPanelContext";
 import { useCDPWallet } from '@/hooks/useCDPWallet';
-import { Copy, Check, Loader2 } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 
 interface AccountPageProps {
   totalBalance?: number;
@@ -24,71 +25,6 @@ interface AccountPageProps {
     displayName?: string;
     bio?: string;
   }) => Promise<void>;
-}
-
-// Status Modal Component
-function StatusModal({ 
-  type, 
-  message, 
-  onClose 
-}: { 
-  type: 'loading' | 'success' | 'error';
-  message: string;
-  onClose?: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-card border-2 border-border rounded-lg p-8 flex flex-col items-center gap-4 min-w-[300px]">
-        {type === 'loading' && (
-          <>
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-lg font-mono uppercase tracking-wider text-center">{message}</p>
-          </>
-        )}
-        
-        {type === 'success' && (
-          <>
-            <div className="h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Check className="h-8 w-8 text-green-500" />
-            </div>
-            <p className="text-lg font-mono uppercase tracking-wider text-center">{message}</p>
-            {onClose && (
-              <Button onClick={onClose} className="mt-2 w-full">
-                Close
-              </Button>
-            )}
-          </>
-        )}
-        
-        {type === 'error' && (
-          <>
-            <div className="h-12 w-12 rounded-full bg-destructive/20 flex items-center justify-center">
-              <svg 
-                className="h-8 w-8 text-destructive" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M6 18L18 6M6 6l12 12" 
-                />
-              </svg>
-            </div>
-            <p className="text-lg font-mono uppercase tracking-wider text-center">{message}</p>
-            <p className="text-sm text-muted-foreground text-center">Please try again</p>
-            {onClose && (
-              <Button onClick={onClose} variant="destructive" className="mt-2 w-full">
-                Close
-              </Button>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // Compress and convert image to base64
@@ -150,16 +86,13 @@ async function compressImage(file: File, maxSizeKB: number = 500): Promise<strin
 
 export default function AccountPage({ totalBalance = 0, userProfile, onUpdateProfile }: AccountPageProps) {
   const { signOut } = useCDPWallet();
+  const { showLoading, showSuccess, showError } = useLoadingPanel();
   const [isCopied, setIsCopied] = useState(false);
-  const [modalState, setModalState] = useState<{
-    show: boolean;
-    type: 'loading' | 'success' | 'error';
-    message: string;
-  }>({ show: false, type: 'loading', message: '' });
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialized = useRef(false);
+  const loadingPanelId = 'account-page'; // Unique ID for this component's loading panels
 
   // Initialize state from userProfile when it becomes available
   useEffect(() => {
@@ -196,18 +129,18 @@ export default function AccountPage({ totalBalance = 0, userProfile, onUpdatePro
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setModalState({ show: true, type: 'error', message: 'Invalid file type' });
+      showError('Error', 'Invalid file type', loadingPanelId);
       return;
     }
 
     // Validate file size (max 5MB before compression)
     if (file.size > 5 * 1024 * 1024) {
-      setModalState({ show: true, type: 'error', message: 'Image too large (max 5MB)' });
+      showError('Error', 'Image too large (max 5MB)', loadingPanelId);
       return;
     }
 
     try {
-      setModalState({ show: true, type: 'loading', message: 'Uploading image...' });
+      showLoading('Processing...', 'Uploading image...', loadingPanelId);
 
       // Compress and convert to base64
       const base64Image = await compressImage(file, 500); // Max 500KB after compression
@@ -216,7 +149,7 @@ export default function AccountPage({ totalBalance = 0, userProfile, onUpdatePro
       await onUpdateProfile({ avatarUrl: base64Image });
 
       // Show success
-      setModalState({ show: true, type: 'success', message: 'Image uploaded!' });
+      showSuccess('Success!', 'Image uploaded!', loadingPanelId);
 
       // Reset file input
       if (fileInputRef.current) {
@@ -224,55 +157,46 @@ export default function AccountPage({ totalBalance = 0, userProfile, onUpdatePro
       }
     } catch (error) {
       console.error('Failed to upload image:', error);
-      setModalState({ show: true, type: 'error', message: 'Upload failed' });
+      showError('Error', 'Upload failed', loadingPanelId);
     }
   };
 
   const handleRemoveImage = async () => {
     try {
-      setModalState({ show: true, type: 'loading', message: 'Removing image...' });
+      showLoading('Processing...', 'Removing image...', loadingPanelId);
       
       await onUpdateProfile({ avatarUrl: '/avatars/user_krimson.png' });
       
-      setModalState({ show: true, type: 'success', message: 'Image removed!' });
+      showSuccess('Success!', 'Image removed!', loadingPanelId);
     } catch (error) {
       console.error('Failed to remove image:', error);
-      setModalState({ show: true, type: 'error', message: 'Remove failed' });
+      showError('Error', 'Remove failed', loadingPanelId);
     }
   };
 
   const handleSaveChanges = async () => {
     if (!displayName.trim()) {
-      setModalState({ show: true, type: 'error', message: 'Name cannot be empty' });
+      showError('Error', 'Name cannot be empty', loadingPanelId);
       return;
     }
 
     try {
-      setModalState({ show: true, type: 'loading', message: 'Saving changes...' });
+      showLoading('Processing...', 'Saving changes...', loadingPanelId);
       
       await onUpdateProfile({
         displayName: displayName.trim(),
         bio: bio.trim(),
       });
 
-      setModalState({ show: true, type: 'success', message: 'Changes saved!' });
+      showSuccess('Success!', 'Changes saved!', loadingPanelId);
     } catch (error) {
       console.error('Failed to save changes:', error);
-      setModalState({ show: true, type: 'error', message: 'Save failed' });
+      showError('Error', 'Save failed', loadingPanelId);
     }
   };
 
   return (
-    <>
-      {modalState.show && (
-        <StatusModal 
-          type={modalState.type}
-          message={modalState.message}
-          onClose={modalState.type !== 'loading' ? () => setModalState({ ...modalState, show: false }) : undefined}
-        />
-      )}
-      
-      <DashboardPageLayout
+    <DashboardPageLayout
         header={{
           title: "Account",
           description: "Your profile and account information",
@@ -435,6 +359,5 @@ export default function AccountPage({ totalBalance = 0, userProfile, onUpdatePro
           </div>
         </div>
       </DashboardPageLayout>
-    </>
   );
 }

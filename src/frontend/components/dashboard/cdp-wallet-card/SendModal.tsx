@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
+import { useLoadingPanel } from '../../../contexts/LoadingPanelContext';
 import { elizaClient } from '../../../lib/elizaClient';
 import { getTokenIconBySymbol } from '../../../constants/chains';
 
@@ -27,12 +28,12 @@ interface SendModalProps {
 }
 
 export function SendModal({ isOpen, onClose, tokens, userId, onSuccess }: SendModalProps) {
+  const { showLoading, showSuccess, showError } = useLoadingPanel();
+  const modalId = 'send-modal';
+  
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -103,23 +104,18 @@ export function SendModal({ isOpen, onClose, tokens, userId, onSuccess }: SendMo
   // Handle send
   const handleSend = async () => {
     if (!selectedToken || !recipientAddress || !amount) {
-      setError('Please fill in all fields');
+      showError('Validation Error', 'Please fill in all fields', modalId);
       return;
     }
 
     if (!isValidAddress || !isValidAmount) {
-      setError('Invalid address or amount');
+      showError('Validation Error', 'Invalid address or amount', modalId);
       return;
     }
 
-    // All tokens are now sendable with viem fallback
-    // No need to check network support anymore
-
-    setIsSending(true);
-    setError(null);
-    setTxHash(null);
-
     try {
+      showLoading('Sending Transaction', 'Please wait while we process your transaction...', modalId);
+      
       const amountNum = parseFloat(amount);
       
       // Validate amount is a valid number
@@ -164,27 +160,36 @@ export function SendModal({ isOpen, onClose, tokens, userId, onSuccess }: SendMo
       });
 
       console.log('✅ Transaction sent:', data);
-      setTxHash(data.transactionHash);
-      setIsSending(false);
-      // Don't auto-close, let user close manually after seeing success
+      
+      // Show success and trigger wallet refresh
+      showSuccess(
+        'Transaction Successful!',
+        `Successfully sent ${amount} ${selectedToken.symbol}`,
+        modalId,
+        false // Don't auto-close
+      );
+      
+      // Reset form
+      setSelectedToken(tokens[0] || null);
+      setRecipientAddress('');
+      setAmount('');
+      
+      // Trigger parent to refresh wallet data
+      onSuccess();
+      
     } catch (err: any) {
       console.error('❌ Send failed:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to send transaction';
-      setError(errorMessage);
-      setIsSending(false);
+      showError('Transaction Failed', errorMessage, modalId);
     }
   };
 
   // Handle close
   const handleClose = () => {
-    if (!isSending) {
-      setSelectedToken(tokens[0] || null);
-      setRecipientAddress('');
-      setAmount('');
-      setError(null);
-      setTxHash(null);
-      onClose();
-    }
+    setSelectedToken(tokens[0] || null);
+    setRecipientAddress('');
+    setAmount('');
+    onClose();
   };
 
   const handleMaxClick = () => {
@@ -194,80 +199,6 @@ export function SendModal({ isOpen, onClose, tokens, userId, onSuccess }: SendMo
   };
 
   if (!isOpen) return null;
-
-  // Success screen
-  if (txHash && selectedToken) {
-    return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={handleClose}>
-        <div className="bg-background rounded-lg max-w-lg w-full max-h-[95vh] overflow-hidden p-1.5" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-pop rounded-lg p-4 sm:p-6 space-y-4 max-h-[calc(90vh-0.75rem)] overflow-y-auto">
-            <h3 className="text-lg font-semibold">Transaction Sent!</h3>
-            
-            <div className="space-y-2">
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded">
-                <p className="text-sm text-green-500">✅ Successfully sent {amount} {selectedToken.symbol}</p>
-              </div>
-              
-              <div className="text-sm space-y-1">
-                <p className="text-muted-foreground">Transaction Hash:</p>
-                <a 
-                  href={getExplorerUrl(selectedToken.chain, txHash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline break-all"
-                >
-                  {txHash.slice(0, 10)}...{txHash.slice(-8)}
-                </a>
-              </div>
-            </div>
-
-            <Button 
-              onClick={() => {
-                onSuccess();
-                handleClose();
-              }} 
-              className="w-full"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
-  }
-
-  // Loading screen
-  if (isSending) {
-    return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="bg-background rounded-lg max-w-lg w-full overflow-hidden p-1.5">
-          <div className="bg-pop rounded-lg p-4 sm:p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Sending Transaction...</h3>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              </div>
-              
-              <p className="text-sm text-muted-foreground text-center">
-                Please wait while your transaction is being processed...
-              </p>
-              
-              {selectedToken && (
-                <div className="p-3 bg-muted rounded text-sm">
-                  <p className="font-medium">Sending:</p>
-                  <p className="text-muted-foreground">{amount} {selectedToken.symbol} on {selectedToken.chain}</p>
-                  <p className="text-xs text-muted-foreground mt-1">To: {recipientAddress.slice(0, 10)}...{recipientAddress.slice(-8)}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
-  }
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={handleClose}>
@@ -400,20 +331,12 @@ export function SendModal({ isOpen, onClose, tokens, userId, onSuccess }: SendMo
             )}
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded">
-              <p className="text-sm text-red-500">{error}</p>
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="flex gap-2">
             <Button
               onClick={handleClose}
               variant="outline"
               className="flex-1"
-              disabled={isSending}
             >
               Cancel
             </Button>
@@ -425,11 +348,10 @@ export function SendModal({ isOpen, onClose, tokens, userId, onSuccess }: SendMo
                 !recipientAddress ||
                 !amount ||
                 !isValidAddress ||
-                !isValidAmount ||
-                isSending
+                !isValidAmount
               }
             >
-              {isSending ? 'Sending...' : 'Send'}
+              Send
             </Button>
           </div>
         </div>
