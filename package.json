@@ -49,6 +49,7 @@
     "@radix-ui/react-tabs": "latest",
     "@radix-ui/react-tooltip": "latest",
     "@tanstack/react-query": "^5.29.0",
+    "@tavily/core": "^0.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "4.1.0",
@@ -59,17 +60,17 @@
     "react-router-dom": "^6.26.0",
     "recharts": "latest",
     "socket.io-client": "^4.8.1",
+    "streamdown": "^1.4.0",
     "tailwind-merge": "^2.6.0",
     "vaul": "^0.9.9",
     "viem": "^2.38.2",
-    "zustand": "^5.0.8",
-    "@tavily/core": "^0.0.2"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.9",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "@tailwindcss/postcss": "^4.1.9",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^4.1.9",

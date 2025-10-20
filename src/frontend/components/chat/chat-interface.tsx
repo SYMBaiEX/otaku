@@ -10,6 +10,7 @@ import { Bot, Loader2 } from "lucide-react"
 import { Bullet } from "@/components/ui/bullet"
 import { cn } from "@/lib/utils"
 import ArrowRightIcon from "@/components/icons/arrow-right"
+import { Response } from "@/components/chat/response"
 
 // Quick start prompts for new conversations (static fallback)
 const DEFAULT_QUICK_PROMPTS = [
@@ -345,9 +346,9 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
                       message.isAgent ? "bg-accent text-foreground" : "bg-primary text-primary-foreground",
                     )}
                   >
-                    <p className="whitespace-pre-wrap break-words">
+                    <Response className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                       {message.content}
-                    </p>
+                    </Response>
                     <span className="text-xs opacity-50 mt-1 block">
                       {new Date(message.createdAt).toLocaleTimeString()}
                     </span>
