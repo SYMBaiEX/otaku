@@ -41,17 +41,12 @@ async function authenticateUser(
     if (!cdpUserId) {
       throw new Error('CDP userId not available - user may not be authenticated with CDP');
     }
-    
-    console.log('📝 CDP User ID:', cdpUserId);
-    
+
     // Login with backend - send email and CDP userId
     const { token, userId } = await elizaClient.auth.login({
       email,
       cdpUserId, // Use CDP's userId directly
     });
-    
-    console.log('✅ Authentication successful');
-    console.log('📝 Backend confirmed userId:', userId);
     
     // Store token in localStorage
     localStorage.setItem('auth-token', token);
