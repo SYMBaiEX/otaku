@@ -10,6 +10,7 @@ import { SessionsService } from './services/sessions';
 import { RunsService } from './services/runs';
 import { EntitiesService } from './services/entities';
 import { CdpService } from './services/cdp';
+import { AuthService } from './services/auth';
 
 export class ElizaClient {
   public readonly agents: AgentsService;
@@ -23,6 +24,9 @@ export class ElizaClient {
   public readonly runs: RunsService;
   public readonly entities: EntitiesService;
   public readonly cdp: CdpService;
+  public readonly auth: AuthService;
+
+  private services: any[];
 
   constructor(config: ApiClientConfig) {
     // Initialize all services with the same config
@@ -37,6 +41,49 @@ export class ElizaClient {
     this.runs = new RunsService(config);
     this.entities = new EntitiesService(config);
     this.cdp = new CdpService(config);
+    this.auth = new AuthService(config);
+    
+    // Keep track of all services for bulk operations
+    this.services = [
+      this.agents,
+      this.messaging,
+      this.memory,
+      this.audio,
+      this.media,
+      this.server,
+      this.system,
+      this.sessions,
+      this.runs,
+      this.entities,
+      this.cdp,
+      this.auth,
+    ];
+  }
+
+  /**
+   * Set authentication token for all API requests
+   * Call this after successful login to authenticate all subsequent requests
+   * 
+   * @param token JWT authentication token
+   */
+  setAuthToken(token: string) {
+    for (const service of this.services) {
+      if (service && typeof service.setAuthToken === 'function') {
+        service.setAuthToken(token);
+      }
+    }
+  }
+
+  /**
+   * Clear authentication token from all services
+   * Call this on logout or when token expires
+   */
+  clearAuthToken() {
+    for (const service of this.services) {
+      if (service && typeof service.clearAuthToken === 'function') {
+        service.clearAuthToken();
+      }
+    }
   }
 
   /**

@@ -213,4 +213,22 @@ export abstract class BaseApiClient {
   ): Promise<T> {
     return this.request<T>('DELETE', path, options);
   }
+
+  /**
+   * Set JWT authentication token for this service
+   * Updates the Authorization header for all future requests
+   * 
+   * @param token JWT authentication token
+   */
+  setAuthToken(token: string) {
+    this.defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
+  /**
+   * Clear JWT authentication token from this service
+   * Removes the Authorization header
+   */
+  clearAuthToken() {
+    delete this.defaultHeaders['Authorization'];
+  }
 }

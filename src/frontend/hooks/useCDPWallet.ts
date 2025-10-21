@@ -50,7 +50,6 @@ export function useCDPWallet() {
   const cdpProjectId = import.meta.env.VITE_CDP_PROJECT_ID;
   const isCdpConfigured = Boolean(cdpProjectId);
 
-  
   // Get user email from CDP currentUser
   // Email is nested in authenticationMethods.email.email
   const userEmail = (currentUser as any)?.authenticationMethods?.email?.email;
@@ -65,6 +64,7 @@ export function useCDPWallet() {
     
     // User info
     userEmail,
+    currentUser, // Export currentUser for userId extraction
 
     // Actions
     signOut,

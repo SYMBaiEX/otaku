@@ -18,6 +18,7 @@ import { teeRouter } from './tee';
 import { systemRouter } from './system';
 import { entitiesRouter } from './entities';
 import { cdpRouter } from './cdp';
+import { createAuthRouter } from './auth';
 // NOTE: world router has been removed - functionality moved to messaging/spaces
 import { SocketIORouter } from '../socketio';
 import {
@@ -387,7 +388,10 @@ export function createApiRouter(
   // Mount entities router at /entities - handles entity CRUD operations
   router.use('/entities', entitiesRouter(serverInstance));
 
-  // Mount CDP router at /cdp - handles CDP wallet operations
+  // Mount auth router at /auth - handles JWT authentication (MUST be before authenticated routes)
+  router.use('/auth', createAuthRouter());
+
+  // Mount CDP router at /cdp - handles CDP wallet operations (requires authentication)
   router.use('/cdp', cdpRouter(serverInstance));
 
   // Mount audio router at /audio - handles audio processing, transcription, and voice operations
