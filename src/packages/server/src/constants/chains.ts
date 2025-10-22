@@ -72,7 +72,7 @@ export const CHAIN_CONFIGS: Record<SupportedNetwork, ChainConfig> = {
     nativeToken: {
       symbol: 'MATIC',
       name: 'Polygon',
-      coingeckoId: 'matic-network',
+      coingeckoId: 'polygon-ecosystem-token',
       decimals: 18,
     },
     coingeckoPlatform: 'polygon-pos',

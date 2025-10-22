@@ -89,8 +89,8 @@ export function TokenDetailModalContent({ token }: TokenDetailModalContentProps)
           const nativeTokenIds: Record<string, string> = {
             'ETH-ethereum': 'ethereum',
             'ETH-base': 'ethereum',
-            'MATIC-polygon': 'matic-network',
-            'POL-polygon': 'matic-network',
+            'MATIC-polygon': 'polygon-ecosystem-token',
+            'POL-polygon': 'polygon-ecosystem-token',
           };
           const tokenKey = `${token.symbol}-${token.chain}`;
           const coinId = nativeTokenIds[tokenKey];
