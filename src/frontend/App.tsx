@@ -662,7 +662,8 @@ export default function AppWithCDP() {
         ethereum: {
           createOnLogin: "smart"
         },
-        appName: "Otaku AI Agent"
+        appName: "Otaku AI Agent",
+        authMethods: ["email", "sms", "oauth:google", "oauth:apple", "oauth:twitter", "oauth:discord"] as any, // Enable all auth methods including Google OAuth
       }}
     >
       <LoadingPanelProvider>

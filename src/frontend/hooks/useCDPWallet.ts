@@ -51,8 +51,20 @@ export function useCDPWallet() {
   const isCdpConfigured = Boolean(cdpProjectId);
 
   // Get user email from CDP currentUser
-  // Email is nested in authenticationMethods.email.email
-  const userEmail = (currentUser as any)?.authenticationMethods?.email?.email;
+  // Try multiple possible locations for email
+  const userEmail = 
+    (currentUser as any)?.authenticationMethods?.email?.email || 
+    (currentUser as any)?.authenticationMethods?.oauth?.email ||
+    (currentUser as any)?.authenticationMethods?.google?.email ||
+    (currentUser as any)?.email ||
+    // Fallback: generate email from userId for OAuth users
+    (isSignedIn && currentUser?.userId ? `${currentUser.userId}@cdp.local` : undefined);
+
+  // Debug log to see currentUser structure when signed in
+  if (isSignedIn && currentUser && !(currentUser as any)?.authenticationMethods?.email?.email) {
+    console.warn('⚠️ CDP user signed in but email not found in standard location. currentUser:', currentUser);
+    console.log('📧 Using fallback email:', userEmail);
+  }
 
   return {
     // Loading state
