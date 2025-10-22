@@ -4,6 +4,7 @@ import internalMessageBus from '../../bus'; // Import the bus
 import type { AgentServer } from '../../index';
 import type { MessageServiceStructure as MessageService } from '../../types';
 import { attachmentsToApiUrls } from '../../utils/media-transformer';
+import { requireAuthOrApiKey, type AuthenticatedRequest } from '../../utils/auth';
 
 const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID; // Single default server
 
@@ -14,7 +15,7 @@ export function createMessagingCoreRouter(serverInstance: AgentServer): express.
   const router = express.Router();
 
   // Endpoint for AGENT REPLIES or direct submissions to the central bus FROM AGENTS/SYSTEM
-  (router as any).post('/submit', async (req: express.Request, res: express.Response) => {
+  (router as any).post('/submit', requireAuthOrApiKey, async (req: AuthenticatedRequest, res: express.Response) => {
     const {
       channel_id,
       server_id, // This is the server_id
