@@ -156,6 +156,17 @@ export function CDPWalletCard({ userId, walletAddress, onBalanceChange }: CDPWal
     fetchTokens();
   }, [userId]);
 
+  // Auto-refresh tokens every 10 seconds
+  useEffect(() => {
+    if (!userId) return;
+    
+    const interval = setInterval(() => {
+      fetchTokens();
+    }, 10000); // 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [userId]);
+
   // Load data based on active tab
   useEffect(() => {
     if (activeTab === 'collections' && nfts.length === 0 && !isLoadingNfts && !nftsError) {
