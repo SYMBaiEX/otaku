@@ -252,6 +252,7 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
 
     const handleNewMessage = (data: any) => {
       console.log(' New message received:', data)
+      console.log(' agentIdRef.current', agentIdRef.current);
       
       const messageId = data.id || crypto.randomUUID()
       const newMessage: Message = {
