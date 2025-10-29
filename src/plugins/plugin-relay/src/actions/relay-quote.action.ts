@@ -199,7 +199,7 @@ export const relayQuoteAction: ActionWithParams = {
           }
           
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "service_unavailable",
             input: earlyFailureInput,
@@ -225,7 +225,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'originChain'. Please specify the origin chain (e.g., 'ethereum', 'base').";
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -241,7 +241,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'destinationChain'. Please specify the destination chain (e.g., 'base', 'arbitrum').";
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -257,7 +257,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'currency'. Please specify the token to bridge (e.g., 'eth', 'usdc').";
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -273,7 +273,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'amount'. Please specify the amount to bridge (e.g., '0.1').";
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -314,7 +314,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = "CDP service not available";
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "service_unavailable",
             input: inputParams,
@@ -347,7 +347,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = "Could not resolve user wallet for quote generation";
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_account_name",
             input: inputParams,
@@ -375,7 +375,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = `Unsupported origin chain: ${quoteParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`;
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "unsupported_chain",
             input: inputParams,
@@ -391,7 +391,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = `Unsupported destination chain: ${quoteParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`;
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "unsupported_chain",
             input: inputParams,
@@ -412,7 +412,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = `Could not resolve currency: ${quoteParams.currency} on ${quoteParams.originChain}`;
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "token_resolution_failed",
             input: inputParams,
@@ -428,7 +428,7 @@ export const relayQuoteAction: ActionWithParams = {
           const errorMsg = `Could not resolve destination currency: ${toCurrencySymbol} on ${quoteParams.destinationChain}`;
           logger.error(`[GET_RELAY_QUOTE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "token_resolution_failed",
             input: inputParams,
@@ -530,7 +530,7 @@ export const relayQuoteAction: ActionWithParams = {
         // If we can't get params, just use empty object
       }
       
-      const errorText = `✗ Failed to get Relay quote: ${errorMessage}`;
+      const errorText = ` Failed to get Relay quote: ${errorMessage}`;
       const errorResponse: ActionResult = {
         text: errorText,
         success: false,
@@ -608,9 +608,9 @@ function formatQuoteResponse(
   const totalImpact = ((quote as any).details?.totalImpact?.percent ?? (quote as any).details?.totalImpact ?? "?") as string;
 
   return `
-↻ **Cross-Chain Quote**
+ **Cross-Chain Quote**
 
-**Route:** ${getChainName(originChainId)} → ${getChainName(destinationChainId)}
+**Route:** ${getChainName(originChainId)}  ${getChainName(destinationChainId)}
 **Amount In:** ${formatAmount(amountIn, currencyInSymbol)}
 **Amount Out:** ${formatAmount(amountOut, currencyOutSymbol)}
 **Exchange Rate:** ${rate}

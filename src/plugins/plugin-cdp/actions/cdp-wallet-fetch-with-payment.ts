@@ -56,7 +56,7 @@ function createErrorResult(
 ): ActionResult & { input: Record<string, unknown> } {
   logger.error(`[FETCH_WITH_PAYMENT] ${errorMsg}`);
   const errorResult: ActionResult & { input: Record<string, unknown> } = {
-    text: `✗ ${errorMsg}`,
+    text: ` ${errorMsg}`,
     success: false,
     error: errorCode,
     input: inputParams,
@@ -79,20 +79,20 @@ function getStatusIndicators(
   const isClientError = status >= 400 && status < 500;
   const isServerError = status >= 500;
   
-  let emoji = '✓';
+  let emoji = '';
   let prefix = wasPaidRequest ? 'Paid Request' : 'Request';
   
   if (wasPaidRequest) {
     if (!isSuccessStatus) {
-      emoji = '⚠';
+      emoji = '';
     }
   } else {
     if (isClientError) {
-      emoji = '✗';
+      emoji = '';
     } else if (isServerError) {
       emoji = '•';
     } else if (!isSuccessStatus) {
-      emoji = '⚠';
+      emoji = '';
     }
   }
   
@@ -296,7 +296,7 @@ export const cdpWalletFetchWithPayment: ActionWithParams = {
       }
 
       logger.info(`[FETCH_WITH_PAYMENT] Making ${method} request to ${url} with max payment ${maxPayment} USDC`);
-      callback?.({ text: `↻ Making request to ${url}... (will handle payment if required)` });
+      callback?.({ text: ` Making request to ${url}... (will handle payment if required)` });
 
       // Convert maxPayment from USDC to base units (USDC has 6 decimals)
       const maxPaymentInBaseUnits = BigInt(Math.floor(maxPayment * 1_000_000));
@@ -357,9 +357,9 @@ export const cdpWalletFetchWithPayment: ActionWithParams = {
       const { emoji: statusEmoji, prefix: statusPrefix } = getStatusIndicators(response.status, wasPaidRequest);
       
       let text = `${statusEmoji} **${statusPrefix} ${isSuccessStatus ? 'Completed' : 'Failed'}**\n\n`;
-      text += `→ **URL:** ${url}\n`;
-      text += `→ **Method:** ${method}\n`;
-      text += `▪ **Status:** ${response.status} ${response.statusText}\n`;
+      text += ` **URL:** ${url}\n`;
+      text += ` **Method:** ${method}\n`;
+      text += ` **Status:** ${response.status} ${response.statusText}\n`;
       
       if (paymentInfo) {
         text += `\n$ **Payment Made:**\n`;
@@ -367,15 +367,15 @@ export const cdpWalletFetchWithPayment: ActionWithParams = {
         text += `  • Network: ${paymentInfo.network}\n`;
         text += `  • Payer: \`${paymentInfo.payer}\`\n`;
       } else {
-        text += `\n→ **Note:** No payment was required (endpoint did not return 402 Payment Required)\n`;
+        text += `\n **Note:** No payment was required (endpoint did not return 402 Payment Required)\n`;
       }
 
       // Only show response body for successful requests or if it's informative
       if (isSuccessStatus || isClientError) {
-        text += `\n□ **Response:**\n`;
+        text += `\n **Response:**\n`;
         text += formatResponseData(responseData);
       } else if (isServerError) {
-        text += `\n⚠ **Server Error:** The API returned a server error (5xx). Please try again later.\n`;
+        text += `\n **Server Error:** The API returned a server error (5xx). Please try again later.\n`;
       }
 
       const data: Record<string, unknown> = {
@@ -408,7 +408,7 @@ export const cdpWalletFetchWithPayment: ActionWithParams = {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error("[FETCH_WITH_PAYMENT] Action failed:", errorMessage);
       
-      const errorText = `✗ Request failed: ${errorMessage}`;
+      const errorText = ` Request failed: ${errorMessage}`;
       const errorResult: ActionResult = {
         text: errorText,
         success: false,
@@ -427,18 +427,18 @@ export const cdpWalletFetchWithPayment: ActionWithParams = {
   examples: [
     [
       { name: "{{user}}", content: { text: "fetch https://x402.example.com/premium-data with payment" } },
-      { name: "{{agent}}", content: { text: "↻ Making request to https://x402.example.com/premium-data...", action: "FETCH_WITH_PAYMENT", url: "https://x402.example.com/premium-data" } },
-      { name: "{{agent}}", content: { text: "✓ **Paid Request Completed**\n\n→ **URL:** https://x402.example.com/premium-data\n→ **Method:** GET\n▪ **Status:** 200 OK\n\n$ **Payment Made:**\n  • Transaction: `0xabc123...`\n  • Network: base\n  • Payer: `0x742d35...`" } },
+      { name: "{{agent}}", content: { text: " Making request to https://x402.example.com/premium-data...", action: "FETCH_WITH_PAYMENT", url: "https://x402.example.com/premium-data" } },
+      { name: "{{agent}}", content: { text: " **Paid Request Completed**\n\n **URL:** https://x402.example.com/premium-data\n **Method:** GET\n **Status:** 200 OK\n\n$ **Payment Made:**\n  • Transaction: `0xabc123...`\n  • Network: base\n  • Payer: `0x742d35...`" } },
     ],
     [
       { name: "{{user}}", content: { text: "POST to https://x402.example.com/submit with payment using body {\"key\": \"value\"}" } },
-      { name: "{{agent}}", content: { text: "↻ Making request to https://x402.example.com/submit...", action: "FETCH_WITH_PAYMENT", url: "https://x402.example.com/submit", method: "POST", body: "{\"key\": \"value\"}" } },
-      { name: "{{agent}}", content: { text: "✓ **Paid Request Completed**\n\n→ **URL:** https://x402.example.com/submit\n→ **Method:** POST\n▪ **Status:** 200 OK\n\n$ **Payment Made:**\n  • Transaction: `0xghi789...`" } },
+      { name: "{{agent}}", content: { text: " Making request to https://x402.example.com/submit...", action: "FETCH_WITH_PAYMENT", url: "https://x402.example.com/submit", method: "POST", body: "{\"key\": \"value\"}" } },
+      { name: "{{agent}}", content: { text: " **Paid Request Completed**\n\n **URL:** https://x402.example.com/submit\n **Method:** POST\n **Status:** 200 OK\n\n$ **Payment Made:**\n  • Transaction: `0xghi789...`" } },
     ],
     [
       { name: "{{user}}", content: { text: "try to fetch https://regular-api.com/free-endpoint with payment support" } },
-      { name: "{{agent}}", content: { text: "↻ Making request to https://regular-api.com/free-endpoint...", action: "FETCH_WITH_PAYMENT", url: "https://regular-api.com/free-endpoint" } },
-      { name: "{{agent}}", content: { text: "✓ **Request Completed**\n\n→ **URL:** https://regular-api.com/free-endpoint\n→ **Method:** GET\n▪ **Status:** 200 OK\n\n→ **Note:** No payment was required (endpoint did not return 402 Payment Required)" } },
+      { name: "{{agent}}", content: { text: " Making request to https://regular-api.com/free-endpoint...", action: "FETCH_WITH_PAYMENT", url: "https://regular-api.com/free-endpoint" } },
+      { name: "{{agent}}", content: { text: " **Request Completed**\n\n **URL:** https://regular-api.com/free-endpoint\n **Method:** GET\n **Status:** 200 OK\n\n **Note:** No payment was required (endpoint did not return 402 Payment Required)" } },
     ],
   ],
 };

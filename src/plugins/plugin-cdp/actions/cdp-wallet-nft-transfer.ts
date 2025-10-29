@@ -92,7 +92,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = "CDP Service not initialized";
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "service_unavailable",
           input: {},
@@ -125,7 +125,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = "Could not find account name for wallet";
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_account_name",
           input: {},
@@ -160,7 +160,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = "Missing required parameter 'to'. Please specify the recipient wallet address (0x...).";
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: inputParams,
@@ -177,7 +177,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = `Invalid recipient address: ${toParam}. Address must start with '0x' and be 42 characters long.`;
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "invalid_address",
           input: inputParams,
@@ -193,7 +193,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = "Missing required parameter 'contractAddress'. Please specify the NFT contract address (0x...).";
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: inputParams,
@@ -210,7 +210,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = `Invalid contract address: ${contractAddressParam}. Address must start with '0x' and be 42 characters long.`;
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "invalid_address",
           input: inputParams,
@@ -226,7 +226,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = "Missing required parameter 'tokenId'. Please specify the NFT token ID.";
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: inputParams,
@@ -242,7 +242,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = "Missing required parameter 'network'. Please specify which network the NFT is on (e.g., 'base', 'ethereum').";
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: inputParams,
@@ -278,7 +278,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         const errorMsg = `NFT not found in your wallet. Contract: ${transferParams.contractAddress}, Token ID: ${transferParams.tokenId} on ${transferParams.network}`;
         logger.error(`[USER_WALLET_NFT_TRANSFER] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "nft_not_found",
           input: inputParams,
@@ -293,7 +293,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
       const nftName = nftInWallet.name || `Token #${transferParams.tokenId}`;
       logger.info(`[USER_WALLET_NFT_TRANSFER] Found NFT in wallet: ${nftName}`);
 
-      callback?.({ text: `↻ Transferring NFT "${nftName}" to ${transferParams.to}...` });
+      callback?.({ text: ` Transferring NFT "${nftName}" to ${transferParams.to}...` });
 
       // Execute NFT transfer via service method
       logger.info(`[USER_WALLET_NFT_TRANSFER] Executing NFT transfer on ${transferParams.network}`);
@@ -305,13 +305,13 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         tokenId: transferParams.tokenId,
       });
 
-      const successText = `✓ NFT Transfer successful!\n\n` +
-                         `→ NFT: ${nftName}\n` +
-                         `→ Contract: ${transferParams.contractAddress}\n` +
-                         `→ Token ID: ${transferParams.tokenId}\n` +
-                         `→ To: ${transferParams.to}\n` +
-                         `→ Network: ${transferParams.network}\n` +
-                         `→ TX: ${result.transactionHash}`;
+      const successText = ` NFT Transfer successful!\n\n` +
+                         ` NFT: ${nftName}\n` +
+                         ` Contract: ${transferParams.contractAddress}\n` +
+                         ` Token ID: ${transferParams.tokenId}\n` +
+                         ` To: ${transferParams.to}\n` +
+                         ` Network: ${transferParams.network}\n` +
+                         ` TX: ${result.transactionHash}`;
 
       callback?.({
         text: successText,
@@ -352,7 +352,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
         }
       }
       
-      const errorText = `✗ ${errorMessage}`;
+      const errorText = ` ${errorMessage}`;
       
       // Try to capture input params for debugging (in case error happened very early)
       let failureInputParams;
@@ -398,7 +398,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
       {
         name: "{{agent}}",
         content: {
-          text: "↻ Transferring NFT #42 to the specified address...",
+          text: " Transferring NFT #42 to the specified address...",
           action: "USER_WALLET_NFT_TRANSFER",
         },
       },
@@ -411,7 +411,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
       {
         name: "{{agent}}",
         content: {
-          text: "↻ Transferring your NFT...",
+          text: " Transferring your NFT...",
           action: "USER_WALLET_NFT_TRANSFER",
         },
       },
@@ -424,7 +424,7 @@ export const cdpWalletNftTransfer: ActionWithParams = {
       {
         name: "{{agent}}",
         content: {
-          text: "↻ Transferring NFT #5...",
+          text: " Transferring NFT #5...",
           action: "USER_WALLET_NFT_TRANSFER",
         },
       },

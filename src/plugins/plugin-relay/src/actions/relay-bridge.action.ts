@@ -197,7 +197,7 @@ export const relayBridgeAction: ActionWithParams = {
           }
           
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "service_unavailable",
             input: earlyFailureInput,
@@ -223,7 +223,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'originChain'. Please specify the origin chain (e.g., 'ethereum', 'base').";
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -239,7 +239,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'destinationChain'. Please specify the destination chain (e.g., 'base', 'arbitrum').";
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -255,7 +255,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'currency'. Please specify the token to bridge (e.g., 'eth', 'usdc').";
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -271,7 +271,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = "Missing required parameter 'amount'. Please specify the amount to bridge (e.g., '0.5').";
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_required_parameter",
             input: params,
@@ -314,7 +314,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = "CDP service not available";
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "service_unavailable",
             input: inputParams,
@@ -347,7 +347,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = "Could not resolve user wallet for bridge execution";
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "missing_account_name",
             input: inputParams,
@@ -385,7 +385,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = `Unsupported origin chain: ${bridgeParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`;
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "unsupported_chain",
             input: inputParams,
@@ -401,7 +401,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = `Unsupported destination chain: ${bridgeParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`;
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "unsupported_chain",
             input: inputParams,
@@ -421,7 +421,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = `Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.originChain}`;
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "token_resolution_failed",
             input: inputParams,
@@ -437,7 +437,7 @@ export const relayBridgeAction: ActionWithParams = {
           const errorMsg = `Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.destinationChain}`;
           logger.error(`[EXECUTE_RELAY_BRIDGE] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "token_resolution_failed",
             input: inputParams,
@@ -627,7 +627,7 @@ export const relayBridgeAction: ActionWithParams = {
         // If we can't get params, just use empty object
       }
       
-      const errorText = `✗ Failed to execute bridge: ${errorMessage}`;
+      const errorText = ` Failed to execute bridge: ${errorMessage}`;
       const errorResponse: ActionResult = {
         text: errorText,
         success: false,
@@ -685,7 +685,7 @@ function formatBridgeResponse(
   collectedTxHashes: Array<{ txHash: string; chainId: number }> = [],
   tokenSymbol?: string
 ): string {
-  const statusIndicator = status?.status === "success" ? "✓" : status?.status === "pending" ? "⧗" : "⚠";
+  const statusIndicator = status?.status === "success" ? "" : status?.status === "pending" ? "" : "";
 
   // Use token symbol from status metadata if available, otherwise use provided symbol
   const statusData = status?.data as any;
@@ -698,7 +698,7 @@ function formatBridgeResponse(
 ${statusIndicator} **Bridge ${(status?.status || "PENDING").toUpperCase()}**
 
 **Request ID:** \`${requestId}\`
-**Route:** ${getChainName(request.originChainId)} → ${getChainName(request.destinationChainId)}
+**Route:** ${getChainName(request.originChainId)}  ${getChainName(request.destinationChainId)}
 **Amount:** ${formatAmount(request.amount, symbol)}
 **Status:** ${status?.status || "pending"}
   `.trim();

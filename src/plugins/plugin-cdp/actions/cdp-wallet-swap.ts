@@ -26,7 +26,7 @@ interface SwapParams {
 /**
  * Native token placeholder address for CDP swaps
  * CDP SDK uses this special address to represent native gas tokens (ETH, MATIC, etc.)
- * The SDK internally handles the native token → no need to convert to wrapped versions
+ * The SDK internally handles the native token  no need to convert to wrapped versions
  * 
  * Reference: https://docs.cdp.coinbase.com/server-wallets/v2/evm-features/swaps
  */
@@ -219,7 +219,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = "CDP Service not initialized";
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "service_unavailable",
           input: {},
@@ -252,7 +252,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = "Could not find account name for wallet";
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_account_name",
           input: {},
@@ -277,7 +277,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = "Missing required parameter 'fromToken'. Please specify which token to swap from (e.g., 'USDC', 'ETH').";
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: params,
@@ -293,7 +293,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = "Missing required parameter 'toToken'. Please specify which token to swap to (e.g., 'ETH', 'USDC').";
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: params,
@@ -313,7 +313,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = "Must specify either 'amount' or 'percentage'. Please specify how much to swap (e.g., '100' or 50%).";
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_required_parameter",
           input: params,
@@ -329,7 +329,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = "Cannot specify both 'amount' and 'percentage'. Please use only one.";
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "invalid_parameter",
           input: params,
@@ -358,7 +358,7 @@ export const cdpWalletSwap: ActionWithParams = {
           const errorMsg = `Invalid percentage value: ${swapParams.percentage}. Must be between 0 and 100.`;
           logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
           const errorResult: ActionResult = {
-            text: `✗ ${errorMsg}`,
+            text: ` ${errorMsg}`,
             success: false,
             error: "invalid_parameter",
             input: params,
@@ -391,7 +391,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = `Could not resolve source token: ${swapParams.fromToken}`;
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "token_resolution_failed",
           input: inputParams,
@@ -406,7 +406,7 @@ export const cdpWalletSwap: ActionWithParams = {
         const errorMsg = `Could not resolve destination token: ${swapParams.toToken}`;
         logger.error(`[USER_WALLET_SWAP] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "token_resolution_failed",
           input: inputParams,
@@ -496,7 +496,7 @@ export const cdpWalletSwap: ActionWithParams = {
       logger.info("[USER_WALLET_SWAP] CDP swap executed successfully");
       logger.debug(`[USER_WALLET_SWAP] Swap result: ${JSON.stringify(result)}`);
 
-      const successText = `✓ Successfully swapped ${amountToSwap} tokens on ${swapParams.network}\n` +
+      const successText = ` Successfully swapped ${amountToSwap} tokens on ${swapParams.network}\n` +
                          `Transaction Hash: ${result.transactionHash}\n` +
                          `From: ${fromToken}\n` +
                          `To: ${toToken}`;
@@ -563,13 +563,13 @@ export const cdpWalletSwap: ActionWithParams = {
       
       logger.debug(`[USER_WALLET_SWAP] Sending error callback: ${errorMessage}`);
       callback?.({
-        text: `✗ ${errorMessage}`,
+        text: ` ${errorMessage}`,
         content: { error: "action_failed", details: errorMessage },
       });
       
       logger.debug("[USER_WALLET_SWAP] Returning error result");
       return {
-        text: `✗ ${errorMessage}`,
+        text: ` ${errorMessage}`,
         success: false,
         error: errorMessage,
         input: failureInputParams,

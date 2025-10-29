@@ -86,7 +86,7 @@ export const cdpWalletInfo: ActionWithParams = {
         const errorMsg = `Invalid chain: ${chain}. Supported chains: ${validChains.join(', ')}`;
         logger.error(`[USER_WALLET_INFO] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "invalid_chain",
           input: inputParams,
@@ -119,7 +119,7 @@ export const cdpWalletInfo: ActionWithParams = {
         const errorMsg = "Could not find account name for wallet";
         logger.error(`[USER_WALLET_INFO] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "missing_account_name",
           input: inputParams,
@@ -138,7 +138,7 @@ export const cdpWalletInfo: ActionWithParams = {
         const errorMsg = "CDP service not available";
         logger.error(`[USER_WALLET_INFO] ${errorMsg}`);
         const errorResult: ActionResult = {
-          text: `✗ ${errorMsg}`,
+          text: ` ${errorMsg}`,
           success: false,
           error: "service_unavailable",
           input: inputParams,
@@ -153,20 +153,20 @@ export const cdpWalletInfo: ActionWithParams = {
       // Fetch comprehensive wallet info (always fresh data)
       const chainInfo = chain ? ` on ${chain}` : '';
       logger.info(`[USER_WALLET_INFO] Fetching fresh wallet info for account: ${accountName}${chainInfo}`);
-      callback?.({ text: `↻ Fetching your wallet information${chainInfo}...` });
+      callback?.({ text: ` Fetching your wallet information${chainInfo}...` });
 
       const walletInfo = await cdpService.fetchWalletInfo(accountName, chain);
 
       logger.info(`[USER_WALLET_INFO] Successfully fetched wallet info: ${walletInfo.tokens.length} tokens, ${walletInfo.nfts.length} NFTs, $${walletInfo.totalUsdValue.toFixed(2)} total value${chainInfo}`);
 
       // Format the response
-      let text = `▪ **Wallet Information${chain ? ` (${chain.charAt(0).toUpperCase() + chain.slice(1)})` : ''}**\n\n`;
-      text += `→ **Address:** \`${walletInfo.address}\`\n`;
+      let text = ` **Wallet Information${chain ? ` (${chain.charAt(0).toUpperCase() + chain.slice(1)})` : ''}**\n\n`;
+      text += ` **Address:** \`${walletInfo.address}\`\n`;
       text += `$ **Total Value:** $${walletInfo.totalUsdValue.toFixed(2)}\n\n`;
 
       // Token summary
       if (walletInfo.tokens.length > 0) {
-        text += `◈ **Tokens (${walletInfo.tokens.length}):**\n`;
+        text += ` **Tokens (${walletInfo.tokens.length}):**\n`;
         
         // Group tokens by chain
         const tokensByChain = walletInfo.tokens.reduce((acc, token) => {
@@ -195,11 +195,11 @@ export const cdpWalletInfo: ActionWithParams = {
           }
         }
       } else {
-        text += `◈ **Tokens:** None found\n`;
+        text += ` **Tokens:** None found\n`;
       }
 
       // NFT summary
-      text += `\n□ **NFTs:** ${walletInfo.nfts.length} item${walletInfo.nfts.length !== 1 ? 's' : ''}`;
+      text += `\n **NFTs:** ${walletInfo.nfts.length} item${walletInfo.nfts.length !== 1 ? 's' : ''}`;
       
       if (walletInfo.nfts.length > 0) {
         // Group NFTs by chain
@@ -249,7 +249,7 @@ export const cdpWalletInfo: ActionWithParams = {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error("[USER_WALLET_INFO] Action failed:", errorMessage);
       
-      const errorText = `✗ Failed to fetch wallet info: ${errorMessage}`;
+      const errorText = ` Failed to fetch wallet info: ${errorMessage}`;
       const errorResult: ActionResult = {
         text: errorText,
         success: false,
@@ -268,35 +268,35 @@ export const cdpWalletInfo: ActionWithParams = {
   examples: [
     [
       { name: "{{user}}", content: { text: "show my wallet" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information...", action: "USER_WALLET_INFO" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information...", action: "USER_WALLET_INFO" } },
     ],
     [
       { name: "{{user}}", content: { text: "check my wallet balance" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information...", action: "USER_WALLET_INFO" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information...", action: "USER_WALLET_INFO" } },
     ],
     [
       { name: "{{user}}", content: { text: "what tokens do I have?" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information...", action: "USER_WALLET_INFO" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information...", action: "USER_WALLET_INFO" } },
     ],
     [
       { name: "{{user}}", content: { text: "show my NFTs" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information...", action: "USER_WALLET_INFO" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information...", action: "USER_WALLET_INFO" } },
     ],
     [
       { name: "{{user}}", content: { text: "what's in my wallet?" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information...", action: "USER_WALLET_INFO" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information...", action: "USER_WALLET_INFO" } },
     ],
     [
       { name: "{{user}}", content: { text: "show my wallet on base" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information on base...", action: "USER_WALLET_INFO", chain: "base" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information on base...", action: "USER_WALLET_INFO", chain: "base" } },
     ],
     [
       { name: "{{user}}", content: { text: "check my ethereum wallet" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information on ethereum...", action: "USER_WALLET_INFO", chain: "ethereum" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information on ethereum...", action: "USER_WALLET_INFO", chain: "ethereum" } },
     ],
     [
       { name: "{{user}}", content: { text: "what tokens do I have on polygon?" } },
-      { name: "{{agent}}", content: { text: "↻ Fetching your wallet information on polygon...", action: "USER_WALLET_INFO", chain: "polygon" } },
+      { name: "{{agent}}", content: { text: " Fetching your wallet information on polygon...", action: "USER_WALLET_INFO", chain: "polygon" } },
     ],
   ],
 };
