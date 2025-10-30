@@ -84,6 +84,7 @@ const HARDCODED_TOKEN_ADDRESSES: Record<string, Record<string, string>> = {
     "weth": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
     "wbtc": "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6",
     "wmatic": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+    "wpol": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", // Same as WMATIC (rebranded)
   },
 };
 
@@ -234,9 +235,28 @@ export async function resolveTokenToAddress(
 ): Promise<`0x${string}` | null> {
   logger.debug(`Resolving token: ${token} on network: ${network}`);
   const trimmedToken = token.trim();
-  if (trimmedToken.toLowerCase() === "eth" || trimmedToken.toLowerCase() === "matic") {
+  
+  // Handle native gas tokens
+  // EXCEPTION: On Polygon, ETH refers to WETH (bridged ETH), not the native gas token
+  if (trimmedToken.toLowerCase() === "eth") {
+    if (network === "polygon") {
+      logger.debug(`ETH on Polygon is WETH, using WETH contract address`);
+      return "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+    }
     logger.debug(`Token ${token} is a native token, using zero address`);
     return "0x0000000000000000000000000000000000000000";
+  }
+  
+  // Handle MATIC/POL on Polygon (native gas token)
+  if ((trimmedToken.toLowerCase() === "matic" || trimmedToken.toLowerCase() === "pol") && network === "polygon") {
+    logger.debug(`Token ${token} is the native gas token on Polygon, using zero address`);
+    return "0x0000000000000000000000000000000000000000";
+  }
+  
+  // Handle MATIC on other chains (would be wrapped/bridged MATIC)
+  if (trimmedToken.toLowerCase() === "matic" && network !== "polygon") {
+    logger.debug(`MATIC on ${network} needs to be resolved via CoinGecko`);
+    // Fall through to normal resolution
   }
   if (trimmedToken.startsWith("0x") && trimmedToken.length === 42) {
     logger.debug(`Token ${token} looks like an address, validating with CoinGecko`);

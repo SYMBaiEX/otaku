@@ -12,6 +12,9 @@ import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { type CdpNetwork } from "../types";
 
+// WETH contract address on Polygon (bridged from Ethereum via PoS Bridge)
+const WETH_POLYGON_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+
 interface TransferParams {
   network?: CdpNetwork;
   to: `0x${string}`;
@@ -30,7 +33,7 @@ export const cdpWalletTokenTransfer: Action = {
     "TRANSFER_TOKENS_CDP",
     "PAY_WITH_CDP",
   ],
-  description: "Use this action when you need to transfer tokens (ERC20 or native tokens like ETH) from user's wallet. For NFTs, use USER_WALLET_NFT_TRANSFER instead.",
+  description: "Use this action when you need to transfer tokens (ERC20 or native tokens like ETH) from user's wallet. For NFTs, use USER_WALLET_NFT_TRANSFER instead. On Polygon, the gas token is POL ($POL, formerly MATIC). Treat 'ETH' on Polygon as 'WETH'.",
   
   // Parameter schema for tool calling
   parameters: {
@@ -41,7 +44,7 @@ export const cdpWalletTokenTransfer: Action = {
     },
     token: {
       type: "string",
-      description: "Token symbol or address to transfer (e.g., 'USDC', 'ETH', 'wlfi', or '0x...')",
+      description: "Token symbol or address to transfer (e.g., 'USDC', 'ETH', 'wlfi', or '0x...'). On Polygon, the native gas token is POL ($POL, formerly MATIC). If 'ETH' is specified for Polygon, interpret it as 'WETH'.",
       required: true,
     },
     amount: {
@@ -306,15 +309,26 @@ export const cdpWalletTokenTransfer: Action = {
         }
       } else if (transferParams.token === "eth") {
         // Native tokens - default to base if no network specified
-        tokenAddress = "eth";
-        decimals = 18;
+        // EXCEPTION: On Polygon, ETH refers to WETH (bridged ETH), not the native gas token
         resolvedNetwork = transferParams.network || "base";
-        // Find the actual wallet token for percentage calculation
-        walletToken = walletInfo.tokens.find(
-          t => !t.contractAddress && t.chain === resolvedNetwork
-        );
-      } else if (transferParams.token === "matic") {
-        // Native tokens
+        
+        if (resolvedNetwork === "polygon") {
+          // On Polygon, ETH is WETH (bridged token)
+          tokenAddress = WETH_POLYGON_ADDRESS;
+          decimals = 18;
+          walletToken = walletInfo.tokens.find(
+            t => t.contractAddress?.toLowerCase() === tokenAddress.toLowerCase() && t.chain === resolvedNetwork
+          );
+        } else {
+          // On other chains, ETH is the native gas token
+          tokenAddress = "eth";
+          decimals = 18;
+          walletToken = walletInfo.tokens.find(
+            t => !t.contractAddress && t.chain === resolvedNetwork
+          );
+        }
+      } else if (transferParams.token === "matic" || transferParams.token === "pol") {
+        // Native MATIC/POL tokens on Polygon
         tokenAddress = "eth";
         decimals = 18;
         resolvedNetwork = transferParams.network || "polygon";

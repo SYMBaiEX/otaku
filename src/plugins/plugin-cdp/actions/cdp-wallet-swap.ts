@@ -74,7 +74,13 @@ const resolveTokenToAddress = async (
   const trimmedToken = token.trim();
   
   // For native ETH - CDP uses special native token address
+  // EXCEPTION: On Polygon, ETH refers to WETH (bridged ETH), not the native gas token
   if (trimmedToken.toLowerCase() === "eth") {
+    if (network === "polygon") {
+      const wethAddress = WETH_ADDRESSES[network];
+      logger.info(`Using WETH contract address for ETH on Polygon: ${wethAddress}`);
+      return wethAddress as `0x${string}`;
+    }
     logger.info(`Using native token address for ETH: ${NATIVE_TOKEN_ADDRESS}`);
     return NATIVE_TOKEN_ADDRESS as `0x${string}`;
   }
@@ -89,9 +95,9 @@ const resolveTokenToAddress = async (
     logger.warn(`No WETH address configured for network ${network}`);
   }
   
-  // For native MATIC on Polygon - use native token address
-  if (trimmedToken.toLowerCase() === "matic" && network === "polygon") {
-    logger.info(`Using native token address for MATIC: ${NATIVE_TOKEN_ADDRESS}`);
+  // For native MATIC/POL on Polygon - use native token address
+  if ((trimmedToken.toLowerCase() === "matic" || trimmedToken.toLowerCase() === "pol") && network === "polygon") {
+    logger.info(`Using native token address for ${trimmedToken.toUpperCase()}: ${NATIVE_TOKEN_ADDRESS}`);
     return NATIVE_TOKEN_ADDRESS as `0x${string}`;
   }
   
@@ -148,18 +154,18 @@ export const cdpWalletSwap: Action = {
     "TRADE_TOKENS_CDP",
     "EXCHANGE_TOKENS_CDP",
   ],
-  description: "Use this action when you need to swap tokens from user's wallet.",
+  description: "Use this action when you need to swap tokens from user's wallet. On Polygon, the gas token is POL ($POL, formerly MATIC). Treat 'ETH' on Polygon as 'WETH'.",
   
   // Parameter schema for tool calling
   parameters: {
     fromToken: {
       type: "string",
-      description: "Source token symbol or address to swap from (e.g., 'USDC', 'ETH', or '0x...')",
+      description: "Source token symbol or address to swap from (e.g., 'USDC', 'ETH', or '0x...'). On Polygon, the native gas token is POL ($POL, formerly MATIC). If 'ETH' is specified for Polygon, interpret it as 'WETH'.",
       required: true,
     },
     toToken: {
       type: "string",
-      description: "Destination token symbol or address to swap to (e.g., 'ETH', 'USDC', or '0x...')",
+      description: "Destination token symbol or address to swap to (e.g., 'ETH', 'USDC', or '0x...'). On Polygon, the native gas token is POL ($POL, formerly MATIC). If 'ETH' is specified for Polygon, interpret it as 'WETH'.",
       required: true,
     },
     amount: {
@@ -636,6 +642,32 @@ export const cdpWalletSwap: Action = {
         name: "{{agent}}",
         content: {
           text: "I'll swap 100% of your MATIC to USDC on Polygon.",
+          action: "USER_WALLET_SWAP",
+        },
+      },
+    ],
+    [
+      {
+        name: "{{user}}",
+        content: { text: "swap 10 POL to USDC on polygon" },
+      },
+      {
+        name: "{{agent}}",
+        content: {
+          text: "I'll swap 10 POL to USDC on Polygon.",
+          action: "USER_WALLET_SWAP",
+        },
+      },
+    ],
+    [
+      {
+        name: "{{user}}",
+        content: { text: "swap 5 USDC to ETH on polygon" },
+      },
+      {
+        name: "{{agent}}",
+        content: {
+          text: "I'll swap 5 USDC to WETH on Polygon.",
           action: "USER_WALLET_SWAP",
         },
       },

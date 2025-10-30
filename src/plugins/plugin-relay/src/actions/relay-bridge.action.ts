@@ -84,7 +84,7 @@ const resolveChainNameToId = (chainName: string): number | null => {
 
 export const relayBridgeAction: Action = {
   name: "EXECUTE_RELAY_BRIDGE",
-  description: "Use this action when you need to execute a cross-chain bridge.",
+  description: "Use this action when you need to execute a cross-chain bridge. On Polygon, the gas token is POL ($POL, formerly MATIC). Treat 'ETH' on Polygon as 'WETH'.",
   similes: [
     "BRIDGE_TOKENS",
     "CROSS_CHAIN_TRANSFER",
@@ -107,7 +107,7 @@ export const relayBridgeAction: Action = {
     },
     currency: {
       type: "string",
-      description: "Token symbol to bridge (e.g., 'eth', 'usdc', 'usdt', 'weth')",
+      description: "Token symbol to bridge (e.g., 'eth', 'usdc', 'usdt', 'weth'). On Polygon, the native gas token is POL ($POL, formerly MATIC). If 'ETH' is specified for Polygon, interpret it as 'WETH'.",
       required: true,
     },
     amount: {
