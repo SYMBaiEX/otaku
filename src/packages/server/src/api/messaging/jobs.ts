@@ -241,8 +241,7 @@ export function createJobsRouter(
                 'Agents can perform deep research, fetch current news, analyze trends, and synthesize information from multiple sources. ' +
                 'Each request costs $0.02 and supports payments on Base and Polygon networks via Coinbase facilitator.',
               inputSchema: {
-                type: 'object',
-                properties: {
+                bodyFields: {
                   userId: {
                     type: 'string',
                     description:
@@ -252,6 +251,7 @@ export function createJobsRouter(
                     type: 'string',
                     description:
                       'Query or prompt for research, news, or information processing',
+                    required: true,
                   },
                   agentId: {
                     type: 'string',
@@ -266,28 +266,24 @@ export function createJobsRouter(
                     description: 'Optional metadata to attach to the job',
                   },
                 },
-                required: ['prompt'],
               },
               outputSchema: {
-                type: 'object',
-                properties: {
-                  jobId: {
-                    type: 'string',
-                    description: 'Unique job identifier',
-                  },
-                  status: {
-                    type: 'string',
-                    enum: ['pending', 'processing', 'completed', 'failed', 'timeout'],
-                    description: 'Current job status',
-                  },
-                  createdAt: {
-                    type: 'number',
-                    description: 'Timestamp when job was created',
-                  },
-                  expiresAt: {
-                    type: 'number',
-                    description: 'Timestamp when job will expire',
-                  },
+                jobId: {
+                  type: 'string',
+                  description: 'Unique job identifier',
+                },
+                status: {
+                  type: 'string',
+                  enum: ['pending', 'processing', 'completed', 'failed', 'timeout'],
+                  description: 'Current job status',
+                },
+                createdAt: {
+                  type: 'number',
+                  description: 'Timestamp when job was created',
+                },
+                expiresAt: {
+                  type: 'number',
+                  description: 'Timestamp when job will expire',
                 },
               },
             },
