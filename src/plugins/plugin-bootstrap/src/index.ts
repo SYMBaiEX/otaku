@@ -77,26 +77,46 @@ Determine the next step the assistant should take in this conversation to help t
 
 # Decision Process (Follow in Order)
 
-## 1. Understand Current State
+## 1. Understand Current State & Intent
 - **Latest user message**: What is the user asking for RIGHT NOW? This is your primary objective.
+- **User's goal**: Is the user seeking comprehensive information, or a specific single answer?
 - **Actions taken THIS round**: Review ***Actions Completed in This Round*** below. What have YOU already executed in THIS execution?
-- **Completion check**: Has the user's request ALREADY been fulfilled in this round? If yes, set \`isFinish: true\`.
+- **Completion check**: Has the user's request been ADEQUATELY fulfilled? Consider both breadth and depth of information provided.
 
-## 2. Check for Redundancy (CRITICAL - STOP CONDITION)
-- **IF this is step 1 (no prior actions)**: Proceed with the user's request if it requires action.
-- **IF you've already taken actions in THIS round**: 
-  * Did you ALREADY complete what the user asked for?
-  * If YES  Set \`isFinish: true\` immediately. Do NOT repeat the action.
-  * If NO  Only proceed if the user's request requires MULTIPLE different actions.
+## 2. Evaluate Redundancy vs Complementarity (CRITICAL)
+**AVOID REDUNDANCY** (these are DUPLICATES - DO NOT repeat):
+- ❌ Executing the SAME action with the SAME parameters you just executed
+- ❌ Executing multiple swap actions for the same token pair
+- ❌ Checking the same balance multiple times in a row
+- ❌ Fetching the same price data twice
 
-## 3. Identify Missing Information
+**ENCOURAGE COMPLEMENTARITY** (these are RELATED but ADD VALUE):
+- ✅ Different actions that provide different perspectives (e.g., trending search + network-specific trends)
+- ✅ Actions with different parameters that broaden insights (e.g., trending on Base + trending on Ethereum)
+- ✅ Actions that gather prerequisites for a final action (e.g., get price → check balance → swap)
+- ✅ Multiple related queries that together paint a fuller picture
+
+**Decision Logic**:
+- If you've executed an action, ask: "Would adding another related action provide NEW valuable insights?"
+- If YES (complementary): Proceed with the related action
+- If NO (redundant): Set \`isFinish: true\`
+
+## 3. Identify Information Gaps
 - Does the user's request require information you don't have?
 - Have you already gathered this in a prior step of THIS round?
+- Would executing related actions provide **additional context or insights** that better serve the user?
 
 ## 4. Choose Next Action
-- Based on what you've ALREADY done in THIS round, what (if anything) is still needed?
-- If the user asked for ONE action and you've completed it successfully  Set \`isFinish: true\`
-- If the user asked for MULTIPLE things and some remain  Continue with the next action
+- Based on what you've ALREADY done in THIS round, what (if anything) would ADD VALUE?
+- **For simple, specific requests** (e.g., "send 0.05 ETH", "what's the price of BTC"):
+  * Execute the ONE action needed
+  * Set \`isFinish: true\` after successful execution
+- **For exploratory/broad requests** (e.g., "what's trending", "analyze this token"):
+  * Consider executing MULTIPLE COMPLEMENTARY actions that provide richer, multi-dimensional insights
+  * Only set \`isFinish: true\` when you've provided comprehensive information
+- **For multi-step requests** (e.g., "get price then swap"):
+  * Execute each step in sequence
+  * Set \`isFinish: true\` only when ALL steps are complete
 - Extract parameters from the **latest user message first**, then results from THIS round.
 
 ---
@@ -112,9 +132,10 @@ You have executed the following actions in THIS multi-step execution round:
 
 {{actionResults}}
 
- **CRITICAL**: These are actions YOU took in this execution, not from earlier in the conversation.
-- If the user's request has been satisfied by these actions, set \`isFinish: true\`
-- Do NOT repeat an action unless it failed or the user explicitly asked for multiple executions
+ **IMPORTANT**: These are actions YOU took in this execution, not from earlier in the conversation.
+- If the user's request has been ADEQUATELY satisfied, set \`isFinish: true\`
+- Do NOT repeat the EXACT SAME action with the SAME parameters
+- DO consider executing RELATED/COMPLEMENTARY actions that add different value
 
 {{else}}
 No actions have been executed yet in this round. This is your first decision step.
@@ -125,12 +146,29 @@ No actions have been executed yet in this round. This is your first decision ste
 # Decision Rules
 
 1. **Step Awareness**: You are on step {{iterationCount}} of {{maxIterations}}. If step > 1, check what you've already done.
-2. **Single vs Multiple Actions**: 
-   - User says "send 0.05 ETH"  ONE action needed, once executed successfully, set isFinish: true
-   - User says "get price of BTC and ETH then swap"  MULTIPLE actions needed, only set isFinish: true when ALL are done
-3. **Check Before Acting**: Before executing ANY action, check if you've already done it in THIS round
-4. **When to Finish**: Set isFinish: true when the ENTIRE user request is satisfied by actions in THIS round, not just one action
-5. **Ground in Evidence**: Parameters must come from the latest message, not from prior round results
+
+2. **Request Type Classification**:
+   - **Specific/Transactional** (e.g., "send ETH", "swap tokens"): ONE action → set isFinish: true
+   - **Exploratory/Analytical** (e.g., "what's trending", "analyze market"): MULTIPLE complementary actions encouraged → set isFinish when comprehensive
+   - **Multi-step Sequential** (e.g., "check balance then swap"): Execute in order → set isFinish when all complete
+
+3. **Redundancy Check**: Before executing ANY action, ask:
+   - "Have I already done THIS EXACT action with THESE EXACT parameters?"
+   - If YES → Skip and set isFinish: true
+   - If NO but similar → Ask "Does this add NEW value?" If yes, proceed
+
+4. **Complementary Actions**: When in doubt about whether to add another action:
+   - If it provides a DIFFERENT data source or perspective: **DO IT**
+   - If it provides the SAME data with different parameters that broaden scope: **DO IT**
+   - If it's just repeating the same query: **DON'T**
+
+5. **When to Finish**: Set isFinish: true when:
+   - Specific requests: The ONE required action is completed successfully
+   - Exploratory requests: You've gathered comprehensive, multi-faceted information
+   - Multi-step requests: ALL steps are complete
+   - You're about to repeat an identical action
+
+6. **Ground in Evidence**: Parameters must come from the latest message, not assumptions
 
 ---
 
@@ -138,25 +176,24 @@ No actions have been executed yet in this round. This is your first decision ste
 "thought" 
 START WITH: "Step {{iterationCount}}/{{maxIterations}}. Actions taken this round: {{traceActionResult.length}}."
 THEN: Quote the latest user request.
-THEN: If actions > 0, state "I have already completed: [list actions]. Remaining tasks: [list what's left, or 'none']."
+THEN: Classify request type (Specific/Exploratory/Multi-step).
+THEN: If actions > 0, state "I have already completed: [list actions with brief result summary]. Evaluating if more complementary actions would add value."
 THEN: Explain your decision:
-  - If all tasks complete: "All requirements satisfied, setting isFinish: true to generate final response."
-  - If more work needed: "Next action: [action name] because [reason]."
-CRITICAL: Only set isFinish: true when the COMPLETE user request is fulfilled.
+  - If finishing: "The request is adequately fulfilled with [breadth/depth] of information. Setting isFinish: true."
+  - If continuing: "Next action: [action name] because [how it complements prior actions or provides new perspective]."
 
 "action" Name of the action to execute (empty string "" if setting isFinish: true or if no action needed)
 "parameters" JSON object with exact parameter names. Empty object {} if action has no parameters.
-"isFinish" Set to true ONLY when the user's ENTIRE request is satisfied by actions taken in THIS round
+"isFinish" Set to true when the user's request is adequately satisfied (see Decision Rules)
 </keys>
 
- CRITICAL STOP-CONDITION CHECKS:
+ CRITICAL CHECKS:
 - What step am I on? ({{iterationCount}}/{{maxIterations}})
 - How many actions have I taken THIS round? ({{traceActionResult.length}})
-- If > 0 actions: Have I completed ALL parts of the user's request?  If YES, set isFinish: true to exit loop
-- Am I about to repeat an action I JUST did in THIS round?  If YES, STOP and set isFinish: true instead
-- Does the user's request require ONE action or MULTIPLE? 
-  * ONE action (e.g., "send ETH"): Execute  Next step set isFinish: true
-  * MULTIPLE actions (e.g., "get price then swap"): Execute all  Then set isFinish: true
+- What TYPE of request is this? (Specific/Exploratory/Multi-step)
+- If > 0 actions: Have I adequately addressed the request?
+- Am I about to execute the EXACT SAME action with EXACT SAME parameters?  If YES, STOP
+- If executing a related but different action: Does it add NEW value/insights?  If YES, PROCEED
 
 # IMPORTANT
 YOUR FINAL OUTPUT MUST BE IN THIS XML FORMAT:

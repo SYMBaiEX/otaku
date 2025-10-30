@@ -182,7 +182,7 @@ export const cdpWalletCheckBalance: Action = {
       const chainInfo = chain ? ` on ${chain}` : '';
       logger.info(`[CHECK_TOKEN_BALANCE] Checking balance for ${token}${chainInfo} (account: ${accountName})`);
       
-      const walletInfo = await cdpService.getWalletInfoCached(accountName, chain);
+      const walletInfo = await cdpService.fetchWalletInfo(accountName, chain);
 
       // Find the token in wallet
       const tokenLower = token.toLowerCase();
