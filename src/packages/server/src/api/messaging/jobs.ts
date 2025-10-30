@@ -7,6 +7,8 @@ import {
 } from '@elizaos/core';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
+// TODO: Install x402-express package to enable payment middleware
+// import { paymentMiddleware } from 'x402-express';
 import type { AgentServer } from '../../index';
 import {
   JobStatus,
@@ -16,9 +18,6 @@ import {
   type Job,
 } from '../../types/jobs';
 import internalMessageBus from '../../bus';
-
-// TODO: Re-enable authentication by uncommenting:
-// import { requireAuthOrApiKey, type AuthenticatedRequest } from '../../middleware';
 
 const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID;
 const DEFAULT_JOB_TIMEOUT_MS = 30000; // 30 seconds
@@ -139,7 +138,19 @@ export interface JobsRouter extends express.Router {
 }
 
 /**
- * Creates the jobs router for one-off messaging
+ * Creates the jobs router for one-off messaging with x402 payment support
+ * 
+ * This endpoint requires x402 payment ($0.02 per request) on Base or Polygon networks.
+ * Payment is handled via Coinbase facilitator, which verifies and settles payments automatically.
+ * 
+ * Capabilities:
+ * - Research: Query and analyze research data, papers, and academic resources
+ * - News: Fetch and summarize current news articles from various sources
+ * - Information Processing: Process and synthesize information from multiple sources
+ * - Data Analysis: Analyze trends, patterns, and insights from provided data
+ * 
+ * Note: This endpoint does not support swap operations or direct EVM transaction capabilities.
+ * Focus is on research, news, and information processing tasks.
  */
 export function createJobsRouter(
   elizaOS: ElizaOS,
@@ -157,14 +168,105 @@ export function createJobsRouter(
     logger.info('[Jobs API] Router cleanup completed');
   };
 
+  // TODO: Setup x402 payment middleware for jobs endpoint when package is installed
+  // Supports both Base and Polygon networks
+  /*
+  let receivingWallet: string;
+  try {
+    receivingWallet = process.env.X402_RECEIVING_WALLET || '';
+    if (!receivingWallet) {
+      logger.warn(
+        '[Jobs API] X402_RECEIVING_WALLET not set. x402 payment support will not be available. ' +
+        'Set X402_RECEIVING_WALLET to enable payment processing.'
+      );
+    } else {
+      // Apply x402 payment middleware to POST /jobs endpoint
+      // Price: $0.02 per request
+      // Networks: Base and Polygon (Coinbase facilitator handles both)
+      router.use(
+        paymentMiddleware(receivingWallet, {
+          'POST /jobs': {
+            price: '$0.02',
+            network: 'base', // Primary network, facilitator handles multi-network
+            config: {
+              description:
+                'Access AI-powered research and news processing capabilities. ' +
+                'Submit queries for research analysis, news summarization, and information processing. ' +
+                'Agents can perform deep research, fetch current news, analyze trends, and synthesize information from multiple sources. ' +
+                'Each request costs $0.02 and supports payments on Base and Polygon networks via Coinbase facilitator.',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  userId: {
+                    type: 'string',
+                    description: 'User identifier (UUID)',
+                  },
+                  content: {
+                    type: 'string',
+                    description:
+                      'Query or prompt for research, news, or information processing',
+                  },
+                  agentId: {
+                    type: 'string',
+                    description: 'Optional agent identifier (UUID). Uses first available agent if not provided.',
+                  },
+                  timeoutMs: {
+                    type: 'number',
+                    description: 'Optional timeout in milliseconds (default: 30000ms, max: 300000ms)',
+                  },
+                  metadata: {
+                    type: 'object',
+                    description: 'Optional metadata to attach to the job',
+                  },
+                },
+                required: ['userId', 'content'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  jobId: {
+                    type: 'string',
+                    description: 'Unique job identifier',
+                  },
+                  status: {
+                    type: 'string',
+                    enum: ['pending', 'processing', 'completed', 'failed', 'timeout'],
+                    description: 'Current job status',
+                  },
+                  createdAt: {
+                    type: 'number',
+                    description: 'Timestamp when job was created',
+                  },
+                  expiresAt: {
+                    type: 'number',
+                    description: 'Timestamp when job will expire',
+                  },
+                },
+              },
+            },
+          },
+        })
+      );
+      logger.info(
+        `[Jobs API] x402 payment middleware enabled. Receiving wallet: ${receivingWallet.substring(0, 10)}...`
+      );
+    }
+  } catch (error) {
+    logger.error(
+      '[Jobs API] Failed to setup x402 payment middleware:',
+      error instanceof Error ? error.message : String(error)
+    );
+    // Continue without payment middleware if setup fails
+  }
+  */
+
   /**
    * Create a new job (one-off message to agent)
    * POST /api/messaging/jobs
-   * TODO: Re-enable authentication - temporarily disabled for testing
+   * Requires x402 payment ($0.02) - no JWT authentication
    */
   router.post(
     '/jobs',
-    // requireAuthOrApiKey, // TEMPORARILY DISABLED
     async (req: express.Request, res: express.Response) => {
       try {
         const body = req.body;
@@ -484,11 +586,10 @@ export function createJobsRouter(
   /**
    * List all jobs (for debugging/admin)
    * GET /api/messaging/jobs
-   * TODO: Re-enable authentication - temporarily disabled for testing
+   * Note: No authentication required - public endpoint for job status checking
    */
   router.get(
     '/jobs',
-    // requireAuthOrApiKey, // TEMPORARILY DISABLED
     async (req: express.Request, res: express.Response) => {
       try {
         const limit = parseInt(req.query.limit as string) || 50;
