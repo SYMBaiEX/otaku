@@ -481,7 +481,7 @@ async function main(): Promise<void> {
 
     // Test 2: Make a paid request (if wallet is configured)
     if (PRIVATE_KEY) {
-      await testPaidRequest('Research the latest developments in AI and summarize the top 3 trends.');
+      await testPaidRequest('What are the key advantages of Base L2 over Ethereum mainnet, and what are the current top DeFi protocols on Base?');
     } else {
       console.log('\n⚠️  Skipping paid request tests - no private key configured');
       console.log('   Set EVM_PRIVATE_KEY, TEST_WALLET_PRIVATE_KEY, or CDP_API_KEY_PRIVATE_KEY to enable');

@@ -221,7 +221,7 @@ export function createJobsRouter(
                 'Access AI-powered research and news processing capabilities. ' +
                 'Submit queries for research analysis, news summarization, and information processing. ' +
                 'Agents can perform deep research, fetch current news, analyze trends, and synthesize information from multiple sources. ' +
-                'Each request costs $0.02 and supports payments on Base and Polygon networks via Coinbase facilitator.',
+                'Each request costs $0.005 USDC and supports payments on Base network via Coinbase facilitator.',
               inputSchema: {
                 bodyFields: {
                   userId: {
@@ -687,49 +687,17 @@ export function createJobsRouter(
   });
 
   /**
-   * List all jobs (for debugging/admin)
-   * GET /api/messaging/jobs
-   * Note: No authentication required - public endpoint for job status checking
+   * GET /api/messaging/jobs - Payment required
+   * Job listing is not available. Use POST to create a job, then poll GET /jobs/:jobId for status.
    */
-  router.get(
-    '/jobs',
-    async (req: express.Request, res: express.Response) => {
-      try {
-        const limit = parseInt(req.query.limit as string) || 50;
-        const status = req.query.status as JobStatus | undefined;
-
-        let jobList = Array.from(jobs.values());
-
-        // Filter by status if provided
-        if (status && Object.values(JobStatus).includes(status)) {
-          jobList = jobList.filter((job) => job.status === status);
-        }
-
-        // Sort by creation date (newest first)
-        jobList.sort((a, b) => b.createdAt - a.createdAt);
-
-        // Limit results
-        jobList = jobList.slice(0, limit);
-
-        const response = {
-          jobs: jobList.map(jobToResponse),
-          total: jobs.size,
-          filtered: jobList.length,
-        };
-
-        res.json(response);
-      } catch (error) {
-        logger.error(
-          '[Jobs API] Error listing jobs:',
-          error instanceof Error ? error.message : String(error)
-        );
-        res.status(500).json({
-          success: false,
-          error: 'Failed to list jobs',
-        });
-      }
-    }
-  );
+  router.get('/jobs', (_req: express.Request, res: express.Response) => {
+    res.status(402).json({
+      success: false,
+      error: 'Payment required',
+      message:
+        'Job listing is not available. Make a paid POST request to /api/messaging/jobs to create a job, then poll GET /api/messaging/jobs/:jobId to check its status.',
+    });
+  });
 
   return router;
 }
