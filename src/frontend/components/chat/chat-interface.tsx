@@ -834,7 +834,7 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
                 {/* Show plugins or plugin-specific prompts */}
                 {!selectedPlugin ? (
                   // Plugin Grid
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(Object.keys(PLUGIN_ACTIONS) as Array<keyof typeof PLUGIN_ACTIONS>).map((pluginKey) => {
                       const plugin = PLUGIN_ACTIONS[pluginKey]
                       const Icon = plugin.icon
@@ -842,12 +842,13 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
                         <button
                           key={pluginKey}
                           onClick={() => setSelectedPlugin(pluginKey)}
-                          className="flex flex-col items-center gap-2 p-3 bg-accent hover:bg-accent/80 rounded border border-border transition-colors group"
+                          className="flex flex-col gap-3 p-4 bg-card/80 hover:bg-card rounded-xl border border-border/40 transition-all group hover:border-primary/40 text-left"
                         >
-                          <div className="rounded-lg bg-primary/10 p-2 group-hover:bg-primary/20 transition-colors">
-                            <Icon className="size-5 text-primary" />
+                          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <Icon className="size-3.5 text-primary shrink-0" strokeWidth={2} />
+                            <span className="line-clamp-1">{plugin.name}</span>
                           </div>
-                          <span className="text-xs font-medium text-center">{plugin.name}</span>
+                          <p className="text-sm text-foreground/90 leading-relaxed">{plugin.description}</p>
                         </button>
                       )
                     })}
