@@ -25,8 +25,8 @@ import { executeSwap } from "../utils/swap";
 import { executeTransfer } from "../utils/transfer";
 
 const cdpConfigSchema = z.object({
-  apiKeyId: z.string().min(1, "COINBASE_API_KEY_NAME must be a non-empty string"),
-  apiKeySecret: z.string().min(1, "COINBASE_PRIVATE_KEY must be a non-empty string"),
+  apiKeyId: z.string().min(1, "CDP_API_KEY_ID must be a non-empty string"),
+  apiKeySecret: z.string().min(1, "CDP_API_KEY_SECRET must be a non-empty string"),
   walletSecret: z.string().min(1, "COINBASE_WALLET_SECRET must be a non-empty string"),
 });
 
@@ -88,13 +88,13 @@ export class CdpService extends Service {
 
   private async initClient(): Promise<void> {
     try {
-      const apiKeyId = process.env.COINBASE_API_KEY_NAME || process.env.CDP_API_KEY_ID;
-      const apiKeySecret = process.env.COINBASE_PRIVATE_KEY || process.env.CDP_API_KEY_SECRET;
+      const apiKeyId = process.env.CDP_API_KEY_ID || process.env.CDP_API_KEY_ID;
+      const apiKeySecret = process.env.CDP_API_KEY_SECRET || process.env.CDP_API_KEY_SECRET;
       const walletSecret = process.env.COINBASE_WALLET_SECRET;
 
       if (!apiKeyId || !apiKeySecret) {
         logger.warn(
-          "CDP_SERVICE: Missing required env vars (COINBASE_API_KEY_NAME, COINBASE_PRIVATE_KEY)",
+          "CDP_SERVICE: Missing required env vars (CDP_API_KEY_ID, CDP_API_KEY_SECRET)",
         );
         this.client = null;
         return;

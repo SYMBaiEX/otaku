@@ -641,8 +641,8 @@ function getCdpClient(): CdpClient | null {
     return cdpClient;
   }
 
-  const apiKeyId = process.env.COINBASE_API_KEY_NAME || process.env.CDP_API_KEY_ID;
-  const apiKeySecret = process.env.COINBASE_PRIVATE_KEY || process.env.CDP_API_KEY_SECRET;
+  const apiKeyId = process.env.CDP_API_KEY_ID || process.env.CDP_API_KEY_ID;
+  const apiKeySecret = process.env.CDP_API_KEY_SECRET || process.env.CDP_API_KEY_SECRET;
   const walletSecret = process.env.COINBASE_WALLET_SECRET;
 
   if (!apiKeyId || !apiKeySecret || !walletSecret) {
