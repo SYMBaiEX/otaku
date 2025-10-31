@@ -183,6 +183,14 @@ export function AboutModalContent({ onClose }: AboutModalContentProps) {
               </span>
             </div>
           </div>
+             {/* ElizaOS Attribution Badge */}
+      <div className="flex justify-start">
+       <img 
+         src="/assets/elizaos_badge.svg" 
+         alt="Powered by ElizaOS" 
+         className="h-16"
+       />
+     </div>
         </div>
         <Button
           variant="ghost"
@@ -199,6 +207,7 @@ export function AboutModalContent({ onClose }: AboutModalContentProps) {
       <div className="flex-1 space-y-8 overflow-y-auto py-6">
 
       <section className="space-y-4">
+      
         <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
           <Bullet className="size-2.5" />
           Capabilities
