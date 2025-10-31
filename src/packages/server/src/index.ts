@@ -585,7 +585,8 @@ export class AgentServer {
           origin: process.env.CORS_ORIGIN || true,
           credentials: true,
           methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-          allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY'],
+          allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY', 'X-PAYMENT', 'X-PAYMENT-RESPONSE'],
+          exposedHeaders: ['X-PAYMENT-RESPONSE'],
         })
       ); // Enable CORS
       this.app.use(

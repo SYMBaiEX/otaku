@@ -357,8 +357,8 @@ export function createApiRouter(
       origin: process.env.API_CORS_ORIGIN || process.env.CORS_ORIGIN || false, // More restrictive for API
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY'],
-      exposedHeaders: ['X-Total-Count'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY', 'X-PAYMENT', 'X-PAYMENT-RESPONSE'],
+      exposedHeaders: ['X-Total-Count', 'X-PAYMENT-RESPONSE'],
       maxAge: 86400, // Cache preflight for 24 hours
     })
   );
