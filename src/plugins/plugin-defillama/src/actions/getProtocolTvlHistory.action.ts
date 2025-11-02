@@ -20,9 +20,12 @@ import {
   parsePositiveInteger,
   respondWithError,
   sanitizeChainName,
+  downsampleSeries,
+  calculateTvlSummary,
 } from "../utils/action-helpers";
 
 const MAX_SERIES_DEFAULT = 365;
+const MAX_POINTS_COMPACT = 30; // Maximum data points in compact mode
 
 export const getProtocolTvlHistoryAction: Action = {
   name: "GET_PROTOCOL_TVL_HISTORY",
@@ -33,7 +36,7 @@ export const getProtocolTvlHistoryAction: Action = {
     "PROTOCOL_TVL_CHART",
   ],
   description:
-    "Fetch historical TVL data for a specific DeFi protocol, with optional per-chain breakdown and lookback window.",
+    "Fetch historical TVL data for a specific DeFi protocol, with optional per-chain breakdown and lookback window. Use compact mode by default to reduce context size.",
   parameters: {
     protocol: {
       type: "string",
@@ -48,6 +51,11 @@ export const getProtocolTvlHistoryAction: Action = {
     days: {
       type: "number",
       description: "Optional number of most recent days to include (default 365).",
+      required: false,
+    },
+    compact: {
+      type: "boolean",
+      description: "If true (default), returns downsampled data (~30 points) plus summary statistics. Set to false for full data.",
       required: false,
     },
   },
@@ -99,6 +107,9 @@ export const getProtocolTvlHistoryAction: Action = {
           : undefined;
       const limitDays = parsedDays ?? MAX_SERIES_DEFAULT;
 
+      // Parse compact parameter (default to true for efficiency)
+      const compactMode = params?.compact !== false;
+
       const lookupResults = await svc.getProtocolsByNames([protocolParam]);
       const match = lookupResults.find(
         (result): result is ProtocolLookupResult & { data: ProtocolSummary } => Boolean(result.success && result.data),
@@ -134,9 +145,23 @@ export const getProtocolTvlHistoryAction: Action = {
 
       const limitedChainSeries = buildChainSeries(history, chainParam, limitDays);
 
+      // Apply downsampling and calculate summary in compact mode
+      const finalTotalSeries = compactMode ? downsampleSeries(limitedTotalSeries, MAX_POINTS_COMPACT) : limitedTotalSeries;
+      const finalChainSeries: Record<string, ProtocolTvlPoint[]> = {};
+      for (const [chainName, series] of Object.entries(limitedChainSeries)) {
+        finalChainSeries[chainName] = compactMode ? downsampleSeries(series, MAX_POINTS_COMPACT) : series;
+      }
+
+      // Calculate summary statistics for the full limited series (before downsampling)
+      const totalSeriesSummary = calculateTvlSummary(limitedTotalSeries);
+      const chainSeriesSummary: Record<string, ReturnType<typeof calculateTvlSummary>> = {};
+      for (const [chainName, series] of Object.entries(limitedChainSeries)) {
+        chainSeriesSummary[chainName] = calculateTvlSummary(series);
+      }
+
       const messageText = chainParam
-        ? `Retrieved ${limitedTotalSeries.length} TVL data points for ${match.data.name} on ${Object.keys(limitedChainSeries).join(", ")}.`
-        : `Retrieved ${limitedTotalSeries.length} TVL data points for ${match.data.name}.`;
+        ? `Retrieved ${limitedTotalSeries.length} TVL data points for ${match.data.name} on ${Object.keys(limitedChainSeries).join(", ")}${compactMode ? ` (downsampled to ${finalTotalSeries.length} points)` : ""}.`
+        : `Retrieved ${limitedTotalSeries.length} TVL data points for ${match.data.name}${compactMode ? ` (downsampled to ${finalTotalSeries.length} points)` : ""}.`;
 
       const responsePayload = {
         protocol: {
@@ -146,11 +171,17 @@ export const getProtocolTvlHistoryAction: Action = {
           currentTvl: history.currentTvl,
           lastUpdated: history.lastUpdated,
         },
-        totalSeries: limitedTotalSeries,
-        chainSeries: limitedChainSeries,
+        totalSeries: finalTotalSeries,
+        chainSeries: finalChainSeries,
+        summary: {
+          total: totalSeriesSummary,
+          chains: chainSeriesSummary,
+        },
         meta: {
           totalPoints: limitedTotalSeries.length,
+          returnedPoints: finalTotalSeries.length,
           requestedDays: parsedDays,
+          compactMode,
         },
       } satisfies ProtocolHistoryResponse;
 
@@ -171,12 +202,14 @@ export const getProtocolTvlHistoryAction: Action = {
           protocol: protocolParam,
           chain: chainParam,
           days: parsedDays,
+          compact: compactMode,
         },
       } as ActionResult & {
         input: {
           protocol: string;
           chain?: string;
           days?: number;
+          compact: boolean;
         };
       };
     } catch (error) {
@@ -221,6 +254,23 @@ export const getProtocolTvlHistoryAction: Action = {
   ],
 };
 
+type TvlSummary = {
+  current: number;
+  min: number;
+  max: number;
+  ath: number;
+  athDate: number;
+  athDaysAgo: number;
+  fromAth: number;
+  fromAthPercent: number;
+  average: number;
+  change: number;
+  changePercent: number;
+  dataPoints: number;
+  firstDate: number;
+  lastDate: number;
+} | null;
+
 type ProtocolHistoryResponse = {
   protocol: {
     name: string;
@@ -231,9 +281,15 @@ type ProtocolHistoryResponse = {
   };
   totalSeries: ProtocolTvlPoint[];
   chainSeries: Record<string, ProtocolTvlPoint[]>;
+  summary: {
+    total: TvlSummary;
+    chains: Record<string, TvlSummary>;
+  };
   meta: {
     totalPoints: number;
+    returnedPoints: number;
     requestedDays?: number | null;
+    compactMode: boolean;
   };
 };
 
