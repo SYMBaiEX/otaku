@@ -23,6 +23,21 @@ interface TransferParams {
   percentage?: number; // Percentage of balance (mutually exclusive with amount)
 }
 
+const tokenSymbolMatches = (symbol: string | null | undefined, requested: string): boolean => {
+  if (!symbol) {
+    return false;
+  }
+
+  const walletSymbol = symbol.toLowerCase();
+  const requestedSymbol = requested.toLowerCase();
+
+  if (requestedSymbol === "matic" || requestedSymbol === "pol") {
+    return walletSymbol === "matic" || walletSymbol === "pol";
+  }
+
+  return walletSymbol === requestedSymbol;
+};
+
 export const cdpWalletTokenTransfer: Action = {
   name: "USER_WALLET_TOKEN_TRANSFER",
   similes: [
@@ -327,30 +342,24 @@ export const cdpWalletTokenTransfer: Action = {
             t => !t.contractAddress && t.chain === resolvedNetwork
           );
         }
-      } else if (transferParams.token === "matic" || transferParams.token === "pol") {
-        // Native MATIC/POL tokens on Polygon
-        tokenAddress = "eth";
-        decimals = 18;
-        resolvedNetwork = transferParams.network || "polygon";
-        // Find the actual wallet token for percentage calculation
-        walletToken = walletInfo.tokens.find(
-          t => !t.contractAddress && t.chain === resolvedNetwork
-        );
       } else {
         // Look for token in user's wallet by symbol
         walletToken = transferParams.network
           ? // If network specified, find token on that specific network
             walletInfo.tokens.find(
-              t => t.symbol.toLowerCase() === transferParams.token.toLowerCase() && 
+              t => tokenSymbolMatches(t.symbol, transferParams.token) &&
                    t.chain === transferParams.network
             )
           : // If no network specified, find token on any network (prefer highest balance)
             walletInfo.tokens
-              .filter(t => t.symbol.toLowerCase() === transferParams.token.toLowerCase())
+              .filter(t => tokenSymbolMatches(t.symbol, transferParams.token))
               .sort((a, b) => parseFloat(b.balance) - parseFloat(a.balance))[0];
 
         if (!walletToken) {
           const networkMsg = transferParams.network ? ` on ${transferParams.network}` : '';
+          if ((transferParams.token === "pol" || transferParams.token === "matic") && transferParams.network && transferParams.network !== "polygon") {
+            throw new Error(`Token ${transferParams.token.toUpperCase()} not found${networkMsg}. Your ${transferParams.token.toUpperCase()} balance is on Polygon. Please specify the 'polygon' network to proceed.`);
+          }
           throw new Error(`Token ${transferParams.token.toUpperCase()} not found in your wallet${networkMsg}. You don't have this token to send.`);
         }
 
