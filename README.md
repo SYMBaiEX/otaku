@@ -511,3 +511,5 @@ MIT
 ---
 
 Built with [ElizaOS](https://github.com/elizaos/eliza) and [Coinbase Developer Platform](https://docs.cdp.coinbase.com/)
+
+© 2025 Shaw Walters and elizaOS Contributors. Released under the MIT License. See `LICENSE`.
