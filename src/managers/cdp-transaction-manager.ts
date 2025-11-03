@@ -627,9 +627,9 @@ export class CdpTransactionManager {
             params: [{
               fromAddress: address,
               category: ['external', 'erc20', 'erc721', 'erc1155'],
-              maxCount: '0x19',
+              // maxCount: '0x19',
               withMetadata: true,
-              excludeZeroValue: false,
+              excludeZeroValue: true,
             }],
           }),
         });
@@ -645,9 +645,9 @@ export class CdpTransactionManager {
             params: [{
               toAddress: address,
               category: ['external', 'erc20', 'erc721', 'erc1155'],
-              maxCount: '0x19',
+              // maxCount: '0x19',
               withMetadata: true,
-              excludeZeroValue: false,
+              excludeZeroValue: true,
             }],
           }),
         });
@@ -657,7 +657,39 @@ export class CdpTransactionManager {
           if (!sentData.error) {
             const sentTransfers = sentData?.result?.transfers || [];
             for (const tx of sentTransfers) {
-              const timestamp = tx.metadata?.blockTimestamp ? new Date(tx.metadata.blockTimestamp).getTime() : Date.now();
+              // Use blockTimestamp if available, otherwise try to fetch block timestamp
+              let timestamp: number;
+              if (tx.metadata?.blockTimestamp) {
+                timestamp = new Date(tx.metadata.blockTimestamp).getTime();
+              } else if (tx.blockNum) {
+                // Fallback: fetch block timestamp from blockNum
+                logger.warn(`[CdpTransactionManager] Missing blockTimestamp for tx ${tx.hash}, fetching from block ${tx.blockNum}`);
+                try {
+                  const blockResponse = await fetch(network.rpc, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: 1,
+                      method: 'eth_getBlockByNumber',
+                      params: [tx.blockNum, false],
+                    }),
+                  });
+                  const blockData = await blockResponse.json();
+                  if (blockData.result?.timestamp) {
+                    // Block timestamp is in hex seconds, convert to milliseconds
+                    timestamp = parseInt(blockData.result.timestamp, 16) * 1000;
+                  } else {
+                    timestamp = Date.now();
+                  }
+                } catch (blockError) {
+                  logger.warn(`[CdpTransactionManager] Failed to fetch block timestamp:`, blockError instanceof Error ? blockError.message : String(blockError));
+                  timestamp = Date.now();
+                }
+              } else {
+                timestamp = Date.now();
+              }
+
               allTransactions.push({
                 chain: network.name,
                 hash: tx.hash,
@@ -680,7 +712,39 @@ export class CdpTransactionManager {
           if (!receivedData.error) {
             const receivedTransfers = receivedData?.result?.transfers || [];
             for (const tx of receivedTransfers) {
-              const timestamp = tx.metadata?.blockTimestamp ? new Date(tx.metadata.blockTimestamp).getTime() : Date.now();
+              // Use blockTimestamp if available, otherwise try to fetch block timestamp
+              let timestamp: number;
+              if (tx.metadata?.blockTimestamp) {
+                timestamp = new Date(tx.metadata.blockTimestamp).getTime();
+              } else if (tx.blockNum) {
+                // Fallback: fetch block timestamp from blockNum
+                logger.warn(`[CdpTransactionManager] Missing blockTimestamp for tx ${tx.hash}, fetching from block ${tx.blockNum}`);
+                try {
+                  const blockResponse = await fetch(network.rpc, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: 1,
+                      method: 'eth_getBlockByNumber',
+                      params: [tx.blockNum, false],
+                    }),
+                  });
+                  const blockData = await blockResponse.json();
+                  if (blockData.result?.timestamp) {
+                    // Block timestamp is in hex seconds, convert to milliseconds
+                    timestamp = parseInt(blockData.result.timestamp, 16) * 1000;
+                  } else {
+                    timestamp = Date.now();
+                  }
+                } catch (blockError) {
+                  logger.warn(`[CdpTransactionManager] Failed to fetch block timestamp:`, blockError instanceof Error ? blockError.message : String(blockError));
+                  timestamp = Date.now();
+                }
+              } else {
+                timestamp = Date.now();
+              }
+
               allTransactions.push({
                 chain: network.name,
                 hash: tx.hash,

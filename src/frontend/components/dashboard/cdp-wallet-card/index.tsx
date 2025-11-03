@@ -436,19 +436,6 @@ export const CDPWalletCard = forwardRef<CDPWalletCardRef, CDPWalletCardProps>(
     setHidePopupTimeout(timeout);
   };
 
-  // Handle copy address
-  const handleCopyAddress = async () => {
-    if (!walletAddress) return;
-    
-    try {
-      await navigator.clipboard.writeText(walletAddress);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy address:', err);
-    }
-  };
-
   // Group transactions by date (sorted by most recent first)
   const groupedTransactions = transactions.reduce<Record<string, Transaction[]>>((groups, tx) => {
     const dateKey = formatDate(tx.timestamp);
