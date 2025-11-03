@@ -154,7 +154,7 @@ THEN: Explain your decision:
 
 "action" Name of the action to execute (empty string "" if setting isFinish: true or if no action needed)
 
-"parameters" Parameters for the action (empty object {{}} if setting isFinish: true or if no action needed)
+"parameters" Parameters for the action (empty object if setting isFinish: true or if no action needed)
 
 "isFinish" Boolean - set to true if the user's request has been adequately fulfilled or if you're about to repeat an action
 </keys>
@@ -165,7 +165,7 @@ Go directly to the XML response format without any preamble or explanation.
 <response>
   <thought>Your detailed reasoning here following the format above</thought>
   <action>ACTION_NAME or empty string</action>
-  <parameters>{{param1: "value1"}} or {{}}</parameters>
+  <parameters>JSON object or empty object</parameters>
   <isFinish>true or false</isFinish>
 </response>
 
