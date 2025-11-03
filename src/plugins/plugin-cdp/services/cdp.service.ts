@@ -238,17 +238,4 @@ export class CdpService extends Service {
       from: result.from,
     };
   }
-
-  /**
-   * Get transaction history
-   * Delegates to transaction manager
-   */
-  async getTransactionHistory(accountName: string): Promise<{
-    transactions: any[];
-    address: string;
-  }> {
-    logger.info(`[CDP Service] Getting transaction history for ${accountName}`);
-    
-    return this.transactionManager.getTransactionHistory(accountName);
-  }
 }
