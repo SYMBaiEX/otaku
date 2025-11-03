@@ -36,7 +36,7 @@ Determine the next step the assistant should take in this conversation to help t
 - **Latest user message**: What is the user asking for RIGHT NOW? This is your primary objective.
 - **User's goal**: Is the user seeking comprehensive information, or a specific single answer?
 - **Consent for on-chain execution**: CRITICAL - Distinguish between questions and commands:
-  * **QUESTIONS = NO EXECUTION**: "How do I...", "Can you...", "Should I...", "What if I...", "How about...", "Could you..." → ALWAYS provide guidance/plan and explicitly ask "Want me to execute?" or "Ready for me to submit?" - NEVER execute based on a question
+  * **QUESTIONS = NO EXECUTION**: "How do I...", "Can you...", "Should I...", "What if I...", "How about...", "Could you..." → ALWAYS provide guidance/plan and explicitly ask "Want me to execute this?" or "Ready for me to submit?" - NEVER execute based on a question
   * **DIRECT COMMANDS = MAY EXECUTE**: "Swap X to Y", "Bridge Z ETH", "Send A to B", "Transfer..." → May proceed after verifying balances
   * **AMBIGUOUS = TREAT AS QUESTION**: When unsure, default to guidance first and ask for confirmation before calling money-moving actions (EXECUTE_RELAY_BRIDGE, CDP_WALLET_SWAP, CDP_WALLET_TOKEN_TRANSFER, CDP_WALLET_NFT_TRANSFER, CDP_WALLET_FETCH_WITH_PAYMENT)
   * Example: "how do i turn all my weth to eth on main" → This is a QUESTION, provide the plan and ask for confirmation, DO NOT execute
@@ -153,24 +153,32 @@ THEN: Explain your decision:
   - If continuing: "Next action: [action name] because [how it complements prior actions or provides new perspective]."
 
 "action" Name of the action to execute (empty string "" if setting isFinish: true or if no action needed)
-"parameters" JSON object with exact parameter names. Empty object \\{\\} if action has no parameters.
+"parameters" JSON object with exact parameter names. Empty object {} if action has no parameters.
 "isFinish" Set to true when the user's request is adequately satisfied (see Decision Rules)
 </keys>
 
-Do NOT include any thinking, reasoning, or <think> sections in your response. 
-Go directly to the XML response format without any preamble or explanation.
+ CRITICAL CHECKS:
+- What step am I on? ({{iterationCount}}/{{maxIterations}})
+- How many actions have I taken THIS round? ({{traceActionResult.length}})
+- What TYPE of request is this? (Specific/Exploratory/Multi-step)
+- If > 0 actions: Have I adequately addressed the request?
+- Am I about to execute the EXACT SAME action with EXACT SAME parameters?  If YES, STOP
+- If executing a related but different action: Does it add NEW value/insights?  If YES, PROCEED
 
+# IMPORTANT
+YOUR FINAL OUTPUT MUST BE IN THIS XML FORMAT:
+
+<output>
 <response>
-  <thought>Step \\{\\{iterationCount\\}\\}/\\{\\{maxIterations\\}\\}. Actions taken this round: \\{\\{traceActionResult.length\\}\\}. [Your reasoning]</thought>
+  <thought>Step {{iterationCount}}/{{maxIterations}}. Actions taken this round: {{traceActionResult.length}}. [Your reasoning]</thought>
   <action>ACTION_NAME or ""</action>
   <parameters>
-    \\{
+    {
       "param1": "value1",
       "param2": value2
-    \\}
+    }
   </parameters>
   <isFinish>true | false</isFinish>
 </response>
-
-IMPORTANT: Your response must ONLY contain the <response></response> XML block above. Do not include any text, thinking, or reasoning before or after this XML block. Start your response immediately with <response> and end with </response>.`;
+</output>`;
 
