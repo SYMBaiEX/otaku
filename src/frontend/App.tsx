@@ -654,7 +654,7 @@ function AppContent({
       <MobileHeader onHomeClick={() => setCurrentView('chat')} />
 
       {/* Desktop Layout - 3 columns */}
-      <div className="w-full min-h-screen h-screen grid grid-cols-1 lg:grid-cols-12 gap-gap lg:px-sides">
+      <div className="w-full min-h-screen h-screen overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-gap lg:px-sides">
         {/* Left Sidebar - Chat History */}
         <div className="hidden lg:block col-span-2 top-0 relative">
           <DashboardSidebar
@@ -672,7 +672,7 @@ function AppContent({
         </div>
 
         {/* Center - Chat Interface / Account */}
-        <div className="col-span-1 lg:col-span-7 h-full">
+        <div className="col-span-1 lg:col-span-7 h-full overflow-hidden">
           {currentView === 'account' ? (
             <AccountPage 
               totalBalance={totalBalance} 
@@ -697,7 +697,7 @@ function AppContent({
               </div>
               
               {/* Content Area */}
-              <div className="min-h-0 flex-1 flex flex-col gap-8 md:gap-14 px-3 lg:px-6 pt-10 md:pt-6 ring-2 ring-pop bg-background">
+              <div className="min-h-0 flex-1 flex flex-col overflow-hidden gap-8 md:gap-14 px-3 lg:px-6 pt-10 md:pt-6 ring-2 ring-pop bg-background">
                 {userId && connected && !isLoadingChannels && (activeChannelId || isNewChatMode) && (
                   <div className="flex-1 min-h-0">
                     <ChatInterface

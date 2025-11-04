@@ -160,6 +160,10 @@
   * {
     @apply border-border outline-ring/50 overscroll-none;
   }
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
   body {
     @apply bg-muted text-foreground;
     font-family: "Roboto Mono", monospace;
