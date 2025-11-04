@@ -2025,15 +2025,20 @@ export class CdpTransactionManager {
             const data = await response.json();
             const currentPrice = data.market_data?.current_price?.usd || null;
 
+            // Get decimals from CoinGecko's detail_platforms
+            const networkName = chainIdToNetwork[platformId] || platformId;
+            const decimals = data.detail_platforms?.[platformId]?.decimal_place || 18;
+
             tokens.push({
               id: data.id,
               symbol: data.symbol?.toUpperCase() || 'UNKNOWN',
               name: data.name || 'Unknown Token',
               contractAddress: query,
-              chain: chainIdToNetwork[platformId] || platformId,
+              chain: networkName,
               icon: data.image?.small || data.image?.thumb || null,
               price: currentPrice,
               platforms: data.platforms || {},
+              decimals,
             });
             break; // Found it, no need to check other chains
           }
@@ -2096,12 +2101,14 @@ export class CdpTransactionManager {
               // Find contract address for the requested chain or any supported chain
               let contractAddress: string | null = null;
               let tokenChain: string | null = null;
+              let platformIdForDecimals: string | null = null;
 
               if (chain) {
                 const platformId = networkToPlatformId[chain.toLowerCase()];
                 if (platformId && platforms[platformId]) {
                   contractAddress = platforms[platformId];
                   tokenChain = chain.toLowerCase();
+                  platformIdForDecimals = platformId;
                 }
               } else {
                 // Get first available supported chain
@@ -2109,12 +2116,16 @@ export class CdpTransactionManager {
                   if (chainIdToNetwork[platformId] && address) {
                     contractAddress = address as string;
                     tokenChain = chainIdToNetwork[platformId];
+                    platformIdForDecimals = platformId;
                     break;
                   }
                 }
               }
 
-              if (contractAddress && tokenChain) {
+              if (contractAddress && tokenChain && platformIdForDecimals) {
+                // Get decimals from CoinGecko's detail_platforms
+                const decimals = data.detail_platforms?.[platformIdForDecimals]?.decimal_place || 18;
+
                 tokens.push({
                   id: data.id,
                   symbol: data.symbol?.toUpperCase() || 'UNKNOWN',
@@ -2124,6 +2135,7 @@ export class CdpTransactionManager {
                   icon: data.image?.small || data.image?.thumb || null,
                   price: currentPrice,
                   platforms: data.platforms || {},
+                  decimals,
                 });
               }
             }

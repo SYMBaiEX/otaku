@@ -164,7 +164,7 @@ export function SwapModalContent({ tokens, userId, onSuccess }: SwapModalContent
             usdPrice: t.price,
             contractAddress: t.contractAddress,
             chain: t.chain!,
-            decimals: 18, // Default, will need to fetch actual decimals if needed
+            decimals: t.decimals || 18,
             icon: t.icon || undefined,
             isExternal: true,
           }));
