@@ -204,9 +204,11 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
   // Track scroll position - detect when user is actively scrolling
   useEffect(() => {
     const container = messagesContainerRef.current
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! container", container);
     if (!container) return
 
     const handleScroll = () => {
+      console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! user scrollllll")
       // User is actively scrolling - disable auto-scroll
       isUserScrollingRef.current = true
       
