@@ -233,17 +233,18 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
 
       sendSuccess(res, result);
     } catch (error) {
-      logger.error(
-        '[CDP API] Error sending tokens:',
-        error instanceof Error ? error.message : String(error)
-      );
-      sendError(
-        res,
-        500,
-        'SEND_FAILED',
-        'Failed to send tokens',
-        error instanceof Error ? error.message : String(error)
-      );
+      const rawErrorMessage = error instanceof Error ? error.message : String(error);
+      
+      logger.error('[CDP API] Error sending tokens:', rawErrorMessage);
+      
+      // Extract just the "Details: ..." part if it exists
+      let errorMessage = 'Failed to send tokens';
+      const detailsMatch = rawErrorMessage.match(/Details:\s*(.+?)(?:\nVersion:|$)/s);
+      if (detailsMatch) {
+        errorMessage = detailsMatch[1].trim();
+      }
+      
+      sendError(res, 500, 'SEND_FAILED', errorMessage);
     }
   });
 
@@ -271,17 +272,18 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
 
       sendSuccess(res, result);
     } catch (error) {
-      logger.error(
-        '[CDP API] Error sending NFT:',
-        error instanceof Error ? error.message : String(error)
-      );
-      sendError(
-        res,
-        500,
-        'SEND_NFT_FAILED',
-        'Failed to send NFT',
-        error instanceof Error ? error.message : String(error)
-      );
+      const rawErrorMessage = error instanceof Error ? error.message : String(error);
+      
+      logger.error('[CDP API] Error sending NFT:', rawErrorMessage);
+      
+      // Extract just the "Details: ..." part if it exists
+      let errorMessage = 'Failed to send NFT';
+      const detailsMatch = rawErrorMessage.match(/Details:\s*(.+?)(?:\nVersion:|$)/s);
+      if (detailsMatch) {
+        errorMessage = detailsMatch[1].trim();
+      }
+      
+      sendError(res, 500, 'SEND_NFT_FAILED', errorMessage);
     }
   });
 
@@ -348,17 +350,18 @@ export function cdpRouter(_serverInstance: AgentServer): express.Router {
 
       sendSuccess(res, result);
     } catch (error) {
-      logger.error(
-        '[CDP API] Error executing swap:',
-        error instanceof Error ? error.message : String(error)
-      );
-      sendError(
-        res,
-        500,
-        'SWAP_FAILED',
-        'Failed to execute swap',
-        error instanceof Error ? error.message : String(error)
-      );
+      const rawErrorMessage = error instanceof Error ? error.message : String(error);
+      
+      logger.error('[CDP API] Error executing swap:', rawErrorMessage);
+      
+      // Extract just the "Details: ..." part if it exists
+      let errorMessage = 'Failed to execute swap';
+      const detailsMatch = rawErrorMessage.match(/Details:\s*(.+?)(?:\nVersion:|$)/s);
+      if (detailsMatch) {
+        errorMessage = detailsMatch[1].trim();
+      }
+      
+      sendError(res, 500, 'SWAP_FAILED', errorMessage);
     }
   });
 
