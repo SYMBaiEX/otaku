@@ -616,6 +616,10 @@ function AppContent({
   const { setOpenMobile } = useSidebar();
   const { showModal, hideModal } = useModal();
 
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [currentView])
+
   const handleOpenAbout = () => {
     showModal(
       <AboutModalContent onClose={() => hideModal(ABOUT_MODAL_ID)} />,
@@ -629,17 +633,15 @@ function AppContent({
     );
   };
 
-  const handleNewChatWithSidebarClose = () => {
+  const onNewChat = () => {
     handleNewChat();
     setCurrentView('chat');
-    // Close mobile sidebar
     setOpenMobile(false);
   };
 
-  const handleChannelSelectWithSidebarClose = (id: string) => {
+  const onChannelSelect = (id: string) => {
     handleChannelSelect(id);
     setCurrentView('chat');
-    // Close mobile sidebar
     setOpenMobile(false);
   };
 
@@ -660,8 +662,8 @@ function AppContent({
           <DashboardSidebar
             channels={channels}
             activeChannelId={activeChannelId}
-            onChannelSelect={handleChannelSelectWithSidebarClose}
-            onNewChat={handleNewChatWithSidebarClose}
+            onChannelSelect={onChannelSelect}
+            onNewChat={onNewChat}
             isCreatingChannel={isCreatingChannel}
             userProfile={userProfile}
             onSignOut={signOut}
