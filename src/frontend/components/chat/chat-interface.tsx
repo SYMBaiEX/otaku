@@ -744,7 +744,7 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
                   >
                     <div
                       className={cn(
-                        "max-w-[70%] rounded-lg px-3 py-2 text-base font-medium",
+                        "max-w-[70%] rounded-lg px-3 py-2 text-base font-medium break-words whitespace-pre-wrap",
                         isErrorMessage 
                           ? "bg-destructive/10 border border-destructive/20 text-destructive"
                           : message.isAgent 
@@ -796,7 +796,7 @@ export function ChatInterface({ agent, userId, serverId, channelId, isNewChatMod
               {/* Error Message */}
               {error && (
                 <div className="flex flex-col gap-1 items-center">
-                  <div className="max-w-[90%] rounded-lg px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive">
+                  <div className="max-w-[90%] rounded-lg px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive break-words whitespace-pre-wrap">
                     <div className="flex items-start gap-2">
                       <span className="text-sm font-medium"> {error}</span>
                     </div>
